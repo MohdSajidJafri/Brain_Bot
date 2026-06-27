@@ -1,0 +1,16 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Data (downloaded clips, rendered output)
+data/
+
+# OS
+Thumbs.db
+.DS_Store
