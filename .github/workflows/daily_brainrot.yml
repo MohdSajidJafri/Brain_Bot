@@ -36,9 +36,6 @@ jobs:
     name: "Generate & upload brainrot short"
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: GTA_VI_Automation
 
     steps:
       - name: Checkout repository
@@ -61,7 +58,7 @@ jobs:
         id: cache-clips
         uses: actions/cache/restore@v4
         with:
-          path: GTA_VI_Automation/data/
+          path: data/
           key: brainrot-data-${{ github.run_id }}
           restore-keys: |
             brainrot-data-
@@ -83,5 +80,5 @@ jobs:
         uses: actions/cache/save@v4
         if: always()
         with:
-          path: GTA_VI_Automation/data/
+          path: data/
           key: brainrot-data-${{ github.run_id }}
