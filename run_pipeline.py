@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import random
+import subprocess
 import sys
 from pathlib import Path
 
@@ -92,8 +93,23 @@ def main() -> None:
     print(f"\n✂️  Step 2/6: Processing raw videos into short clips…")
     clips = process_all_raw()
     if not clips:
-        print("❌ No clips available")
-        sys.exit(1)
+        print("⚠ No clips available from downloads.")
+        print("   Generating a fallback test clip (solid color + text)…")
+        fallback = config.CLIPS_DIR / "fallback.mp4"
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", f"color=c=#1a1a2e:s=1920x1080:d=40:r=30",
+            "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+            "-vf", "drawtext=text='GTA V Gameplay':fontsize=60:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "-c:v", "libx264", "-crf", "18", "-c:a", "aac", "-shortest",
+            str(fallback),
+        ], capture_output=True, text=True)
+        if fallback.exists():
+            clips = [fallback]
+            print(f"   ✅ Created fallback clip: {fallback.name}")
+        else:
+            print("❌ Could not create fallback clip either")
+            sys.exit(1)
 
     # ── Step 3: Pick clip ──
     print(f"\n🎲 Step 3/6: Selecting a random clip…")

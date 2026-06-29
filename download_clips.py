@@ -25,13 +25,14 @@ def _save_history(ids: set[str]) -> None:
 
 def download_fresh_clips() -> list[Path]:
     """
-    Search YouTube for GTA VI gameplay, download new videos.
-    Returns list of downloaded file paths.
+    Search YouTube for GTA V gameplay, download new videos.
+    Works best on local machine (GitHub runners may get bot-blocked).
+    Falls back gracefully if download fails.
+    Returns list of downloaded file paths (empty if none found).
     """
     history = _load_history()
     print(f"📺 History: {len(history)} videos already downloaded")
 
-    # Build yt-dlp command
     output_tpl = str(config.RAW_DIR / "%(id)s.%(ext)s")
     cmd = [
         "yt-dlp",
@@ -42,6 +43,8 @@ def download_fresh_clips() -> list[Path]:
         "--no-playlist",
         "--quiet",
         "--print", "after_move:filepath",
+        "--extractor-retries", "1",
+        "--retries", "2",
         f"ytsearch{config.YTDL_MAX_DOWNLOADS}:{config.YTDL_SEARCH_QUERY}",
     ]
 
@@ -49,11 +52,16 @@ def download_fresh_clips() -> list[Path]:
     print(f"   Max downloads: {config.YTDL_MAX_DOWNLOADS}")
 
     result = subprocess.run(cmd, capture_output=True, text=True)
+
     if result.returncode != 0:
-        print(f"⚠ yt-dlp stderr: {result.stderr.strip()}")
-        if not result.stdout.strip():
-            print("   No new clips downloaded.")
-            return []
+        print(f"⚠ Download failed: YouTube may be blocking this environment")
+        if "Sign in" in result.stderr:
+            print("   → YouTube requires sign-in (common on GitHub runners)")
+            print("   → Run 'python download_clips.py' locally on your PC instead")
+            print("   → The committed clips in this repo will be used")
+        else:
+            print(f"   Error: {result.stderr[:200]}")
+        return []
 
     downloaded = []
     for line in result.stdout.strip().splitlines():
