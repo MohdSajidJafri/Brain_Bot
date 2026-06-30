@@ -6,9 +6,11 @@ Render final 9:16 brainrot short with HIGH QUALITY.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import config
@@ -130,12 +132,16 @@ def render(
         c = colors[i % len(colors)]
         ass += f"Dialogue: 0,{_t(ts)},{_t(te)},Default,,0,0,0,,{{\\\\c{c}\\an5}}{w}\n"
 
-    ass_path = Path("C:/temp/gta_caps.ass")
-    ass_path.parent.mkdir(parents=True, exist_ok=True)
+    ass_path = Path(tempfile.gettempdir()) / "gta_caps.ass"
     ass_path.write_text(ass, encoding="utf-8")
 
     # ── Render ──
-    ass_filter = "C\\\\:/temp/gta_caps.ass"
+    # Use OS-independent temp path; on Windows escape the colon in filter
+    ass_str = str(ass_path)
+    if os.name == "nt":  # Windows
+        ass_filter = ass_str.replace(":", "\\\\:")
+    else:  # Linux/Mac
+        ass_filter = ass_str
     cmd = [
         "ffmpeg", "-y",
         "-i", str(clip_path),
