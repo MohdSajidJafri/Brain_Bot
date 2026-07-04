@@ -13,6 +13,14 @@ import config
 IG_TIMEOUT = 60  # 1 minute timeout for Instagram operations
 
 
+def _challenge_handler(username, challenge_type):
+    """Handle Instagram login challenges (verification code, etc.)."""
+    print(f"\n⚠ Instagram requires account verification for {username}")
+    print(f"   Challenge type: {challenge_type}")
+    code = input("   Enter the verification code sent to your email/phone: ").strip()
+    return code
+
+
 def upload_reel(
     video_path: Path,
     caption: str = "",
@@ -39,15 +47,28 @@ def upload_reel(
 
     try:
         from instagrapi import Client
-        from instagrapi.exceptions import LoginRequired, ClientError
+        from instagrapi.exceptions import ChallengeError, LoginRequired, ClientError
+        from instagrapi.mixins.challenge import ChallengeResolveMixin
 
         cl = Client()
+        # Use a persistent settings file so Instagram recognizes this device across runs
+        settings_path = config.CACHE_DIR / "ig_settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if settings_path.exists():
+            cl.load_settings(str(settings_path))
+            print("   Loaded saved session")
+
         # Set a timeout on IG requests
         import socket
         socket.setdefaulttimeout(IG_TIMEOUT)
         cl.delay_range = [1, 3]  # Respect rate limits
 
+        # Handle challenges during login
+        cl.challenge_code_handler = _challenge_handler
+
         cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+        cl.dump_settings(str(settings_path))
         print("   ✅ Logged in")
 
         # Build caption with hashtags
@@ -65,6 +86,10 @@ def upload_reel(
 
     except ImportError:
         print("⚠ instagrapi not installed. Install with: pip install instagrapi")
+        return ""
+    except ChallengeError as e:
+        print(f"⚠ Instagram challenge error: {e}")
+        print("   Try logging in manually on a browser first, then re-run.")
         return ""
     except Exception as e:
         print(f"❌ Instagram upload failed: {e}")
