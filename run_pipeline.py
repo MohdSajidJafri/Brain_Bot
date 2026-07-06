@@ -148,7 +148,8 @@ def main() -> None:
 
         # ── Step 4: Generate script ──
         print(f"\n🧠 Step 4/6: Generating {style} brainrot script…")
-        narration, title = generate_brainrot_script(style=style)
+        narration, title, emphasis_words = generate_brainrot_script(style=style)
+        print(f"   Emphasis words: {emphasis_words}")
 
         # Clean the narration BEFORE both TTS and rendering to keep word counts in sync
         import re
@@ -157,18 +158,28 @@ def main() -> None:
         if not clean_narration:
             clean_narration = "GTA V BRAINROT"
 
+        # Style-based TTS voice selection
+        style_voices = {
+            "chaotic": "en-US-AndrewNeural",    # deeper, more dramatic
+            "meme": "en-US-AndrewNeural",       # energetic
+            "story": "en-US-BrianNeural",       # conversational
+            "npc": "en-US-GuyNeural",           # calm storyteller
+        }
+        tts_voice = style_voices.get(style, config.TTS_VOICE)
+
         # ── Step 5: TTS ──
-        print(f"\n🔊 Step 5/6: Synthesizing voiceover…")
+        print(f"\n🔊 Step 5/6: Synthesizing voiceover ({tts_voice})…")
         audio_path = config.OUTPUT_DIR / "voiceover.mp3"
         audio_dur, sentence_timings = synthesize_brainrot_voiceover(
-            clean_narration, output_path=audio_path,
+            clean_narration, output_path=audio_path, voice=tts_voice,
         )
 
         # ── Step 6: Render ──
-        print(f"\n🎬 Step 6/6: Rendering final 9:16 short…")
+        print(f"\n🎬 Step 6/6: Rendering final 9:16 short with kinetic captions…")
         video_path = config.OUTPUT_DIR / "final_short.mp4"
         render(clip, audio_path, narration, output_path=video_path,
-               sentence_timings=sentence_timings)
+               sentence_timings=sentence_timings, style=style,
+               emphasis_words=emphasis_words)
 
         # ── Step 7: Upload ──
         if not args.no_upload:

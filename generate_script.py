@@ -1,6 +1,6 @@
 """
 Generate brainrot scripts for GTA V clips using Groq LLM (free tier).
-Target: 70-120 words, funny + engaging brainrot style.
+Target: 40-65 words, hook-first, with emphasis keywords for kinetic captions.
 No emojis — clean text only for TTS compatibility.
 """
 from __future__ import annotations
@@ -19,42 +19,122 @@ USER_SYSTEM_PROMPT = (
     "Your style: chaotic, FUNNY, relatable gamer humor. "
     "CRITICAL: Do NOT use any emojis or special unicode characters. "
     "Use ONLY plain text words and punctuation. "
-    "Structure the script as a coherent MINI-STORY with: "
-    "1) A setup (what's happening) "
-    "2) An escalation (something goes wrong) "
-    "3) A punchline (funny reaction) "
-    "Use short punchy lines. Each line is 5-10 words. "
-    "Total script is EXACTLY 8-15 lines (70-120 words total). "
-    "This is for a 25-35 second voiceover. "
-    "Use ALL CAPS for the FUNNY/IMPORTANT words. "
+    "Structure each script EXACTLY as: HOOK | BODY | PUNCHLINE | EMPHASIS\n"
+    "HOOK: A single short sentence (5-10 words) that grabs attention immediately. "
+    "Ask a question or make a shocking statement. "
+    "BODY: 3-5 short punchy lines that tell a quick mini-story with a setup and escalation. "
+    "PUNCHLINE: A single funny line (5-10 words) that closes the video. "
+    "Total script is EXACTLY 40-65 words across HOOK + BODY + PUNCHLINE. "
+    "This is for a 15-22 second voiceover. "
+    "Use ALL CAPS for 2-3 KEY WORDS total that should be visually emphasized. "
+    "EMPHASIS: List exactly 2-3 words (without punctuation) that were in ALL CAPS, comma-separated. "
     "Sound like a GENUINE GAMER reacting to what's happening on screen. "
-    "Examples of the style (but be original): "
-    "'Bro JUST WATCH this NPC... he's about to DO something STUPID... oh NO he DID NOT just do that HAHAHA' "
-    "'Me: driving NORMAL... GTA V: LETS THROW A TRASH TRUCK at your face' "
+    "Examples of HOOK style: "
+    "'Ever wonder what happens when you PISS OFF an NPC?' "
+    "'Watch this GTA V NPC commit a CRIME better than me.' "
+    "'This is why GTA V is the BEST game ever made.' "
+    "Then BODY tells what happens. Then PUNCHLINE delivers the laugh."
     "Be FUNNY. Be RELATABLE. Think like a gamer streaming to friends."
 )
+
+# Fallback narration for when Groq API fails
+FALLBACK_NARRATION = (
+    "EVER wonder what happens when you mess with GTA V physics? "
+    "Bro I was just driving NORMAL and a trash truck SPAWNS on my car. "
+    "This game is PEAK chaos and I love every second of it."
+)
+FALLBACK_EMPHASIS = "EVER, NORMAL, SPAWNS, PEAK"
 
 
 def _strip_emojis(text: str) -> str:
     """Remove emoji characters from text."""
     emoji_pattern = re.compile(
         "["
-        "\U0001F600-\U0001F64F"  # emoticons
-        "\U0001F300-\U0001F5FF"  # symbols & pictographs
-        "\U0001F680-\U0001F6FF"  # transport & map symbols
-        "\U0001F1E0-\U0001F1FF"  # flags
-        "\U00002702-\U000027B0"  # dingbats
-        "\U000024C2-\U0001F251"  # misc
+        "\U0001F600-\U0001F64F"
+        "\U0001F300-\U0001F5FF"
+        "\U0001F680-\U0001F6FF"
+        "\U0001F1E0-\U0001F1FF"
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
         "]+",
         flags=re.UNICODE,
     )
     return emoji_pattern.sub("", text).strip()
 
 
+def _parse_structured_response(response: str) -> dict:
+    """Parse the structured LLM response into components."""
+    result = {
+        "hook": "",
+        "body": "",
+        "punchline": "",
+        "emphasis": [],
+        "full_narration": "",
+        "title": "GTA V BRAINROT",
+    }
+
+    lines = response.splitlines()
+    current_section = None
+    sections = {}
+
+    for line in lines:
+        line = line.strip()
+        upper = line.upper()
+
+        if upper.startswith("HOOK:"):
+            current_section = "hook"
+            sections["hook"] = line.split(":", 1)[1].strip()
+        elif upper.startswith("BODY:"):
+            current_section = "body"
+            sections["body"] = line.split(":", 1)[1].strip()
+        elif upper.startswith("PUNCHLINE:"):
+            current_section = "punchline"
+            sections["punchline"] = line.split(":", 1)[1].strip()
+        elif upper.startswith("EMPHASIS:"):
+            current_section = "emphasis"
+            raw = line.split(":", 1)[1].strip()
+            result["emphasis"] = [w.strip().upper() for w in raw.split(",") if w.strip()]
+        elif upper.startswith("NARRATION:"):
+            result["full_narration"] = line.split(":", 1)[1].strip()
+        elif upper.startswith("TITLE:"):
+            result["title"] = line.split(":", 1)[1].strip()[:60]
+        elif current_section and line:
+            sections[current_section] = sections.get(current_section, "") + " " + line
+
+    # Build structured result
+    if sections.get("hook") or sections.get("body") or sections.get("punchline"):
+        result["hook"] = sections.get("hook", "")
+        result["body"] = sections.get("body", "")
+        result["punchline"] = sections.get("punchline", "")
+        # Build full narration from components
+        parts = [p for p in [result["hook"], result["body"], result["punchline"]] if p]
+        result["full_narration"] = " ".join(parts)
+    elif result["full_narration"]:
+        # Try to extract emphasis from full_narration
+        pass
+    else:
+        result["full_narration"] = response
+
+    return result
+
+
+def _extract_emphasis_from_text(text: str) -> list[str]:
+    """Extract ALL CAPS words as emphasis targets."""
+    words = text.split()
+    caps_words = [w.strip(".,!?;:\"'") for w in words if w.isupper() and len(w) > 2]
+    # Deduplicate while preserving order
+    seen = set()
+    return [w for w in caps_words if not (w in seen or seen.add(w))][:5]
+
+
 def generate_brainrot_script(
     clip_description: str = "",
     style: str = "chaotic",
-) -> tuple[str, str]:
+) -> tuple[str, str, list[str]]:
+    """
+    Generate a brainrot script.
+    Returns: (full_narration, title, emphasis_words)
+    """
     api_key = config.GROQ_API_KEY or os.environ.get("GROQ_API_KEY")
     if not api_key:
         print("❌ GROQ_API_KEY not set!")
@@ -65,23 +145,30 @@ def generate_brainrot_script(
     user_prompt = (
         f"Write a FUNNY brainrot script for this GTA V gameplay clip.\n\n"
         f"Requirements:\n"
-        f"- 8-15 short punchy lines (total 70-120 words)\n"
-        f"- Tell a mini-story: setup, escalation, punchline\n"
-        f"- Use ALL CAPS for dramatic/funny emphasis\n"
+        f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
+        f"- HOOK: grab attention in 5-10 words (question or shocking statement)\n"
+        f"- BODY: 3-5 short lines telling what happened\n"
+        f"- PUNCHLINE: funny closing line\n"
+        f"- Use ALL CAPS on 2-3 key words for emphasis\n"
         f"- NO EMOJIS whatsoever - plain text only\n"
-        f"- Sound like a real gamer reacting, not a robot\n"
-        f"- Reference things that happen in GTA: NPCs, cops, chaos, physics glitches, etc.\n"
-        f"- The funnier the better\n\n"
+        f"- Sound like a real gamer reacting\n"
+        f"- Reference GTA: NPCs, cops, chaos, physics glitches\n\n"
         f"Format EXACTLY like this:\n"
-        f"NARRATION: <your 70-120 word script without any emojis>\n"
+        f"HOOK: <attention grabber, 5-10 words>\n"
+        f"BODY: <3-5 short lines, 25-45 words total>\n"
+        f"PUNCHLINE: <funny closing, 5-10 words>\n"
+        f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
         f"TITLE: <clickbait title under 60 chars>"
     )
 
-    print(f"🤖 Groq: generating {style} brainrot script (target 70-120 words)…")
+    print(f"🤖 Groq: generating {style} brainrot script (target 40-65 words)…")
 
-    best_narration = ""
-    best_title = "GTA V BRAINROT"
-    best_wc = 0
+    best_result = {
+        "full_narration": "",
+        "title": "GTA V BRAINROT",
+        "emphasis": [],
+        "word_count": 0,
+    }
 
     for attempt in range(2):
         try:
@@ -92,54 +179,60 @@ def generate_brainrot_script(
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.95,
-                max_tokens=800,
+                max_tokens=600,
                 timeout=30,
             )
         except Exception as e:
             print(f"   ⚠ Groq API error (attempt {attempt+1}): {e}")
             if attempt == 1:
-                best_narration = "When the GTA V physics engine decides to absolutely DESTROY your day. Like bro I was just driving NORMAL and then BOOM a trash truck spawns on my head. HAHAHA this game is PEAK chaos I love it."
-                best_title = "GTA V BRAINROT"
-                best_wc = len(best_narration.split())
-                print(f"   ⚠ Using fallback narration ({best_wc} words)")
-                break
+                print(f"   ⚠ Using fallback narration")
+                return FALLBACK_NARRATION, "GTA V BRAINROT", ["EVER", "NORMAL", "SPAWNS", "PEAK"]
             continue
 
         response = completion.choices[0].message.content.strip()
 
-        narration = ""
-        title = "GTA V BRAINROT"
-        for line in response.splitlines():
-            line = line.strip()
-            if line.upper().startswith("NARRATION:"):
-                narration = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("TITLE:"):
-                title = line.split(":", 1)[1].strip()[:60]
+        # Parse structured response
+        parsed = _parse_structured_response(response)
 
-        if not narration:
-            narration = response
-            for p in ["NARRATION:", "Narration:", "narration:"]:
-                if narration.upper().startswith(p.upper()):
-                    narration = narration[len(p):].strip()
-
-        # Strip emojis and markdown formatting
-        narration = _strip_emojis(narration)
+        # Strip formatting
+        narration = _strip_emojis(parsed["full_narration"])
         narration = narration.replace("**", "").replace("__", "").replace("*", "")
-        title = _strip_emojis(title)
+        title = _strip_emojis(parsed["title"])
         title = title.replace("**", "").replace("__", "").replace("*", "")
 
+        # Get emphasis words
+        emphasis = parsed["emphasis"]
+        if not emphasis:
+            emphasis = _extract_emphasis_from_text(narration)
+
         wc = len(narration.split())
-        if wc > best_wc:
-            best_narration = narration
-            best_title = title
-            best_wc = wc
+        if wc > best_result["word_count"] and wc >= 30:
+            best_result["full_narration"] = narration
+            best_result["title"] = title or "GTA V BRAINROT"
+            best_result["emphasis"] = emphasis
+            best_result["word_count"] = wc
 
-        if wc >= 70:
+        if 35 <= wc <= 75:
             break
-        user_prompt += "\n\nToo short! MUST be 70-120 words. Add more funny lines."
+        user_prompt += "\n\nMake it shorter and punchier! MUST be 40-65 words."
 
-    print(f"   📝 {best_wc} words")
-    return best_narration, best_title
+    # If we got nothing useful, use fallback
+    if not best_result["full_narration"]:
+        print("   ⚠ No valid script generated, using fallback")
+        return FALLBACK_NARRATION, "GTA V BRAINROT", ["EVER", "NORMAL", "SPAWNS", "PEAK"]
+
+    print(f"   📝 {best_result['word_count']} words, {len(best_result['emphasis'])} emphasis words")
+    return best_result["full_narration"], best_result["title"], best_result["emphasis"]
+
+
+# Backward compatibility for old code that expects 2 return values
+def generate_brainrot_script_legacy(
+    clip_description: str = "",
+    style: str = "chaotic",
+) -> tuple[str, str]:
+    """Legacy wrapper that returns (narration, title) without emphasis."""
+    narration, title, _ = generate_brainrot_script(clip_description, style)
+    return narration, title
 
 
 if __name__ == "__main__":
@@ -147,6 +240,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--style", default="chaotic")
     args = ap.parse_args()
-    n, t = generate_brainrot_script(style=args.style)
-    print(f"\n✅ {len(n.split())} words: {n[:120]}...")
+    n, t, e = generate_brainrot_script(style=args.style)
+    print(f"\n✅ {len(n.split())} words: {n}")
     print(f"📌 {t}")
+    print(f"🔍 Emphasis: {e}")

@@ -1,7 +1,8 @@
 """
 Render final 9:16 brainrot short with HIGH QUALITY.
 - Lanczos upscale + unsharp for crisp 1080p
-- Center-screen colorful ASS subtitles
+- Kinetic captions: emphasis words get 1.5x size, alternating placement
+- Style-based color palettes
 - Word timings matched to voiceover speed
 """
 from __future__ import annotations
@@ -15,9 +16,25 @@ from pathlib import Path
 
 import config
 
-# Timeout for ffmpeg render operations (5 min for normal, 10 min for high-quality)
 RENDER_TIMEOUT = 600
 FFPROBE_TIMEOUT = 60
+
+# Style-based color palettes
+STYLE_PALETTES = {
+    "chaotic": ["&H00FF4500", "&H00FF6347", "&H00FF0000", "&H00FFA500",
+                "&H00FF4500", "&H00FF6347", "&H00FF0000", "&H00FFA500"],
+    "meme":   ["&H0000FF00", "&H0032CD32", "&H00ADFF2F", "&H007FFF00",
+               "&H0000FF00", "&H0032CD32", "&H00ADFF2F", "&H007FFF00"],
+    "story":  ["&H00FFFFFF", "&H00F0F8FF", "&H00E0E0E0", "&H00D3D3D3",
+               "&H00FFFFFF", "&H00F0F8FF", "&H00E0E0E0", "&H00D3D3D3"],
+    "npc":    ["&H00937FDC", "&H008A2BE2", "&H00BA55D3", "&H00DA70D6",
+               "&H00937FDC", "&H008A2BE2", "&H00BA55D3", "&H00DA70D6"],
+}
+
+# Emphasis word gets larger font
+EMPHASIS_FONTSIZE = 130
+NORMAL_FONTSIZE = 90
+ALTERNATE_Y = [1200, 1400, 1600, 1300, 1500, 1700]  # vertical positions to alternate
 
 
 def _get_dur(path: Path) -> float:
@@ -32,34 +49,22 @@ def _build_word_timings(clean_words: list[str], audio_dur: float,
     """
     Build (start_sec, end_sec, word) tuples.
     If sentence_timings are provided, words are distributed within each sentence.
-    Otherwise words are evenly spread across total duration.
     """
     result = []
     n = len(clean_words)
 
     if sentence_timings and len(sentence_timings) > 0:
-        # Map words to sentences
-        # First, reconstruct sentences from the words
-        sentence_texts = [s.get("text", "") for s in sentence_timings]
-
-        # Simple greedy matching: assign words to sentence boundaries
         word_idx = 0
-        total_sentence_dur = sum(
-            s.get("duration_ms", 1000) / 1000 for s in sentence_timings
-        )
-
         for sent in sentence_timings:
             s_text = sent.get("text", "")
             s_start = sent.get("offset_ms", 0) / 1000
             s_dur = sent.get("duration_ms", 1000) / 1000
             s_end = s_start + s_dur
 
-            # Count words in this sentence
             s_words = [w for w in s_text.split() if w.strip()]
             n_s_words = len(s_words)
 
             if n_s_words > 0 and word_idx < n:
-                # Assign words to this sentence's time range
                 w_per = s_dur / n_s_words
                 for j in range(n_s_words):
                     if word_idx >= n:
@@ -69,7 +74,6 @@ def _build_word_timings(clean_words: list[str], audio_dur: float,
                     result.append((ws, we, clean_words[word_idx]))
                     word_idx += 1
 
-        # Assign any remaining words
         remaining = n - word_idx
         if remaining > 0:
             last_end = result[-1][1] if result else audio_dur
@@ -81,7 +85,6 @@ def _build_word_timings(clean_words: list[str], audio_dur: float,
                 result.append((ws, we, clean_words[word_idx]))
                 word_idx += 1
     else:
-        # Fallback: evenly distribute
         w_per = audio_dur / max(n, 1)
         for i, w in enumerate(clean_words):
             ws = i * w_per
@@ -91,10 +94,52 @@ def _build_word_timings(clean_words: list[str], audio_dur: float,
     return result
 
 
+def _build_ass_subtitles(
+    timings: list[tuple[float, float, str]],
+    style: str = "chaotic",
+    emphasis_words: list[str] | None = None,
+) -> str:
+    """Build ASS subtitle content with kinetic styling."""
+    palette = STYLE_PALETTES.get(style, STYLE_PALETTES["chaotic"])
+    emphasis_set = set(w.upper() for w in (emphasis_words or []))
+
+    ass = (
+        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
+        "ScaledBorderAndShadow: yes\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        "Style: Emphasis,Impact,130,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,5,5,0,0,0,1\n"
+        "Style: Normal,Impact,90,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,5,5,0,0,0,1\n\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    for i, (ts, te, w) in enumerate(timings):
+        def _t(s): h = int(s // 3600); m = int((s % 3600) // 60); return f"{h}:{m:02d}:{s % 60:05.2f}"
+
+        word_upper = w.strip(".,!?;:\"'").upper()
+        is_emphasis = word_upper in emphasis_set
+        style_name = "Emphasis" if is_emphasis else "Normal"
+        color = palette[i % len(palette)]
+
+        # Alternating vertical position for visual rhythm
+        alt_idx = i % len(ALTERNATE_Y)
+
+        if is_emphasis:
+            # Emphasis: center screen, larger, with a slight glow effect
+            ass += f"Dialogue: 0,{_t(ts)},{_t(te)},Emphasis,,0,0,{ALTERNATE_Y[alt_idx]},,{{\\c{color}\\an5}}{w}\n"
+        else:
+            # Normal: standard position
+            ass += f"Dialogue: 0,{_t(ts)},{_t(te)},Normal,,0,0,{ALTERNATE_Y[alt_idx]},,{{\\c{color}\\an5}}{w}\n"
+
+    return ass
+
+
 def render(
     clip_path: Path, audio_path: Path, narration: str,
     output_path: Path | None = None,
     sentence_timings: list[dict] | None = None,
+    style: str = "chaotic",
+    emphasis_words: list[str] | None = None,
 ) -> Path:
     if output_path is None:
         output_path = config.OUTPUT_DIR / "final_short.mp4"
@@ -112,37 +157,18 @@ def render(
     words = clean.split()
     n = len(words)
 
-    # Build word timings from sentence timestamps
+    # Build word timings
     timings = _build_word_timings(words, audio_dur, sentence_timings)
     print(f"   {n} words, {audio_dur:.0f}s audio, {len(sentence_timings or [])} sentences")
 
-    # ── Build ASS subtitles ──
-    ass = (
-        "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
-        "ScaledBorderAndShadow: yes\n\n"
-        "[V4+ Styles]\n"
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        "Style: Default,Impact,100,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,5,5,0,0,0,1\n\n"
-        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
-    )
-
-    colors = [
-        "&H00FFFFFF", "&H0000FFD7", "&H00FF69B4", "&H0000FF7F",
-        "&H00FF4500", "&H00937FDC", "&H0000BFFF", "&H00FFD700",
-    ]
-
-    for i, (ts, te, w) in enumerate(timings):
-        def _t(s): h = int(s // 3600); m = int((s % 3600) // 60); return f"{h}:{m:02d}:{s % 60:05.2f}"
-        c = colors[i % len(colors)]
-        ass += f"Dialogue: 0,{_t(ts)},{_t(te)},Default,,0,0,0,,{{\\\\c{c}\\an5}}{w}\n"
+    # Build ASS subtitles with kinetic styling
+    ass = _build_ass_subtitles(timings, style, emphasis_words)
 
     # Write ASS to output dir
     ass_path = config.OUTPUT_DIR / "captions.ass"
     ass_path.write_text(ass, encoding="utf-8")
 
     # ── Render ──
-    # Use relative path to avoid colon-in-drive-letter issues in ffmpeg filter graph
-    # (e.g. D:/path/... would be parsed as option separator by subtitles filter)
     ass_safe = "data/output/captions.ass"
 
     def _build_cmd(preset: str, crf: str, bv: str, ba: str) -> list[str]:
@@ -165,7 +191,6 @@ def render(
             str(output_path),
         ]
 
-    # Try high quality first, fall back to faster presets on timeout/failure
     presets = [
         ("slow", "16", "12M", "256k"),
         ("medium", "16", "10M", "256k"),
@@ -174,17 +199,15 @@ def render(
 
     for preset, crf, bv, ba in presets:
         cmd = _build_cmd(preset, crf, bv, ba)
-        print(f"   Trying {preset} preset ({bv}, crf {crf})…")
+        print(f"   Rendering ({preset}, {bv}, crf {crf})…")
         try:
-            # Use subprocess.DEVNULL to avoid pipe buffer deadlock with ffmpeg's stderr
             r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=RENDER_TIMEOUT)
         except subprocess.TimeoutExpired:
-            print(f"   ⚠ {preset} preset timed out")
+            print(f"   ⚠ {preset} timed out")
             continue
         if r.returncode == 0:
             break
-        else:
-            print(f"   ⚠ {preset} preset failed (code {r.returncode})")
+        print(f"   ⚠ {preset} failed (code {r.returncode})")
     else:
         print("❌ All render presets failed")
         sys.exit(1)
@@ -202,5 +225,8 @@ if __name__ == "__main__":
     a.add_argument("--clip", required=True)
     a.add_argument("--audio", required=True)
     a.add_argument("--narration", default="GTA VI BRAINROT")
+    a.add_argument("--style", default="chaotic")
+    a.add_argument("--emphasis", default="", help="Comma-separated emphasis words")
     args = a.parse_args()
-    render(Path(args.clip), Path(args.audio), args.narration)
+    emphasis = [w.strip() for w in args.emphasis.split(",") if w.strip()] if args.emphasis else None
+    render(Path(args.clip), Path(args.audio), args.narration, style=args.style, emphasis_words=emphasis)
