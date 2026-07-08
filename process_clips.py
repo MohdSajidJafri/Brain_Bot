@@ -33,7 +33,7 @@ def _detect_scenes(path: Path, threshold: float = 0.3) -> list[float]:
     Returns list of timestamps in seconds where scenes change.
     """
     cmd = [
-        "ffmpeg", "-i", str(path),
+        "ffmpeg", "-an", "-i", str(path),
         "-filter:v", f"select='gt(scene,{threshold})',showinfo",
         "-f", "null", "-",
     ]
@@ -85,11 +85,7 @@ def _split_into_clips(
             "-ss", str(start),
             "-i", str(video_path),
             "-t", str(end - start),
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "23",
-            "-c:a", "aac",
-            "-b:a", "128k",
+            "-c", "copy",
             str(out_path),
         ]
         try:

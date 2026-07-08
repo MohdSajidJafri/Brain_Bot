@@ -22,7 +22,6 @@ RAW_DIR = ROOT / "data" / "raw"
 CLIPS_DIR = ROOT / "data" / "clips"
 OUTPUT_DIR = ROOT / "data" / "output"
 CACHE_DIR = ROOT / "data" / "cache"
-HISTORY_FILE = ROOT / "data" / "used_clips.json"
 
 for d in [RAW_DIR, CLIPS_DIR, OUTPUT_DIR, CACHE_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -43,6 +42,7 @@ GROQ_MODEL = _env("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # ── TTS ──────────────────────────────────────────────────────
 TTS_VOICE = _env("EDGE_TTS_VOICE", "en-US-EricNeural")
+TTS_RATE = _env("TTS_RATE", "-10%")
 
 # ── Brainrot style ───────────────────────────────────────────
 BRAINROT_STYLE = _env("BRAINROT_STYLE", "chaotic")
@@ -50,7 +50,7 @@ BRAINROT_STYLE = _env("BRAINROT_STYLE", "chaotic")
 # ── Render settings ──────────────────────────────────────────
 OUTPUT_WIDTH = 1080
 OUTPUT_HEIGHT = 1920
-FPS = 30
+FPS = 60
 
 # ── YouTube ──────────────────────────────────────────────────
 YT_CLIENT_ID = _env("YT_CLIENT_ID")

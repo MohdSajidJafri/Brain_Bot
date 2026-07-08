@@ -44,11 +44,12 @@ async def _synthesize_with_timing(
     text: str,
     out_path: Path,
     voice: str,
+    rate: str = "-10%",
 ) -> list[SentenceTiming]:
     """Synthesize speech with sentence-level timestamps."""
     import edge_tts
 
-    communicate = edge_tts.Communicate(text, voice)
+    communicate = edge_tts.Communicate(text, voice, rate=rate)
     sentences: list[SentenceTiming] = []
 
     with open(out_path, "wb") as audio_file:
@@ -71,6 +72,7 @@ def synthesize_brainrot_voiceover(
     narration: str,
     output_path: Path | None = None,
     voice: str | None = None,
+    rate: str | None = None,
 ) -> tuple[float, list[SentenceTiming]]:
     """
     Synthesize brainrot narration to audio using Edge TTS.
@@ -87,13 +89,26 @@ def synthesize_brainrot_voiceover(
         output_path = config.OUTPUT_DIR / "voiceover.mp3"
     voice = voice or config.TTS_VOICE
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rate = rate or config.TTS_RATE
+    # Normalize casing to prevent Edge TTS from spelling out ALL CAPS emphasis words
+    words = narration.split()
+    normalized_words = []
+    for w in words:
+        clean_w = w.strip(".,!?;:\"'-")
+        if clean_w.upper() in ["GTA", "NPC", "POV", "CI", "IG", "YT"]:
+            normalized_words.append(w.upper())  # Keep acronyms capitalized
+        elif clean_w.isupper() and len(clean_w) > 1:
+            # It's an emphasis word (ALL CAPS) - lowercase it to make it sound natural
+            normalized_words.append(w.lower())
+        else:
+            normalized_words.append(w)
+    tts_text = " ".join(normalized_words)
 
-    print(f"🔊 Edge TTS: synthesizing voiceover ({voice})…")
+    print(f"🔊 Edge TTS: synthesizing voiceover ({voice} at {rate} speed)…")
     try:
         sentences = asyncio.run(
             asyncio.wait_for(
-                _synthesize_with_timing(narration, output_path, voice),
+                _synthesize_with_timing(tts_text, output_path, voice, rate),
                 timeout=TTS_TIMEOUT,
             )
         )

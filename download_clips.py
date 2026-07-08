@@ -4,7 +4,6 @@ Tracks already-downloaded videos to avoid duplicates.
 """
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -12,15 +11,7 @@ from pathlib import Path
 import config
 
 
-def _load_history() -> set[str]:
-    """Load set of already-downloaded video IDs."""
-    if config.HISTORY_FILE.exists():
-        return set(json.loads(config.HISTORY_FILE.read_text()))
-    return set()
 
-
-def _save_history(ids: set[str]) -> None:
-    config.HISTORY_FILE.write_text(json.dumps(sorted(ids), indent=2))
 
 
 def download_fresh_clips() -> list[Path]:
@@ -30,12 +21,9 @@ def download_fresh_clips() -> list[Path]:
     Falls back gracefully if download fails.
     Returns list of downloaded file paths (empty if none found).
     """
-    history = _load_history()
-    print(f"📺 History: {len(history)} videos already downloaded")
-
     output_tpl = str(config.RAW_DIR / "%(id)s.%(ext)s")
     cmd = [
-        "yt-dlp",
+        sys.executable, "-m", "yt_dlp",
         "--format", config.YTDL_FORMAT,
         "--output", output_tpl,
         "--max-downloads", str(config.YTDL_MAX_DOWNLOADS),
@@ -76,11 +64,8 @@ def download_fresh_clips() -> list[Path]:
             p = Path(line)
             if p.exists():
                 downloaded.append(p)
-                vid = p.stem
-                history.add(vid)
                 print(f"   ✅ Downloaded: {p.name}")
 
-    _save_history(history)
     print(f"   Total: {len(downloaded)} new video(s)")
     return downloaded
 

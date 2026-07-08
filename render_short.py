@@ -9,6 +9,7 @@ Render final 9:16 brainrot short with HIGH QUALITY.
 from __future__ import annotations
 
 import os
+import random
 import re
 import subprocess
 import sys
@@ -20,16 +21,12 @@ import config
 RENDER_TIMEOUT = 600
 FFPROBE_TIMEOUT = 60
 
-# Style-based color palettes
+# Style-based color palettes (flashy & multicolored neon colors for brainrot feel)
 STYLE_PALETTES = {
-    "chaotic": ["&H00FF4500", "&H00FF6347", "&H00FF0000", "&H00FFA500",
-                "&H00FF4500", "&H00FF6347", "&H00FF0000", "&H00FFA500"],
-    "meme":   ["&H0000FF00", "&H0032CD32", "&H00ADFF2F", "&H007FFF00",
-               "&H0000FF00", "&H0032CD32", "&H00ADFF2F", "&H007FFF00"],
-    "story":  ["&H00FFFFFF", "&H00F0F8FF", "&H00E0E0E0", "&H00D3D3D3",
-               "&H00FFFFFF", "&H00F0F8FF", "&H00E0E0E0", "&H00D3D3D3"],
-    "npc":    ["&H00937FDC", "&H008A2BE2", "&H00BA55D3", "&H00DA70D6",
-               "&H00937FDC", "&H008A2BE2", "&H00BA55D3", "&H00DA70D6"],
+    "chaotic": ["&H000000FF", "&H0000A5FF", "&H0000FFFF", "&H00FF00FF", "&H00FFFF00", "&H0000FF00"], # Red, Orange, Yellow, Pink, Cyan, Green
+    "meme":    ["&H0000FF00", "&H00FFFF00", "&H0000FFFF", "&H00FF00FF", "&H0000A5FF", "&H000000FF"], # Green, Cyan, Yellow, Pink, Orange, Red
+    "story":   ["&H00FFFFFF", "&H0000FFFF", "&H00FFFF00", "&H00FF00FF", "&H0000FF00", "&H00FF5500"], # White, Yellow, Cyan, Pink, Green, Blue
+    "npc":     ["&H00FF00FF", "&H00937FDC", "&H008A2BE2", "&H00FFFF00", "&H0000FF00", "&H00FFFFFF"], # Pink, Purple, Violet, Cyan, Green, White
 }
 
 ALTERNATE_Y = [1200, 1400, 1600, 1300, 1500, 1700]
@@ -97,6 +94,11 @@ def _build_ass_subtitles(
 
     title = video_title.strip() or "GTA V BRAINROT"
 
+    def _t(s):
+        h = int(s // 3600)
+        m = int((s % 3600) // 60)
+        return f"{h}:{m:02d}:{s % 60:05.2f}"
+
     ass = (
         "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
         "ScaledBorderAndShadow: yes\n\n"
@@ -113,18 +115,19 @@ def _build_ass_subtitles(
         first_word_start = timings[0][0]
         title_duration = min(2.5, first_word_start + 0.3)
         title_color = palette[0]
-        def _t(s): h = int(s // 3600); m = int((s % 3600) // 60); return f"{h}:{m:02d}:{s % 60:05.2f}"
         ass += f"Dialogue: 0,0:00:00.00,{_t(title_duration)},Title,,0,0,400,,{{\\c{title_color}\\an8}}{title}\n"
 
     # Word-by-word captions
     for i, (ts, te, w) in enumerate(timings):
-        def _t(s): h = int(s // 3600); m = int((s % 3600) // 60); return f"{h}:{m:02d}:{s % 60:05.2f}"
         word_upper = w.strip(".,!?;:\"'").upper()
         is_emphasis = word_upper in emphasis_set
         style_name = "Emphasis" if is_emphasis else "Normal"
         color = palette[i % len(palette)]
-        alt_idx = i % len(ALTERNATE_Y)
-        ass += f"Dialogue: 0,{_t(ts)},{_t(te)},{style_name},,0,0,{ALTERNATE_Y[alt_idx]},,{{\\c{color}\\an5}}{w}\n"
+        
+        # Random positions on screen for chaotic brainrot effect
+        rx = random.randint(250, 830)
+        ry = random.randint(600, 1500)
+        ass += f"Dialogue: 0,{_t(ts)},{_t(te)},{style_name},,0,0,0,,{{\\c{color}\\an5\\pos({rx},{ry})}}{w}\n"
 
     return ass
 
@@ -161,48 +164,55 @@ def render(
     ass_path = config.OUTPUT_DIR / "captions.ass"
     ass_path.write_text(ass, encoding="utf-8")
 
-    ass_safe = "data/output/captions.ass"
+    # Format absolute path for FFmpeg subtitles filter on Windows
+    ass_path_str = str(ass_path.resolve()).replace("\\", "/")
+    ass_safe = ass_path_str.replace(":", "\\:")
 
     def _build_cmd(preset: str, crf: str, bv: str, ba: str) -> list[str]:
         return [
             "ffmpeg", "-y",
+            "-stream_loop", "-1",
             "-i", str(clip_path),
             "-i", str(audio_path),
             "-filter_complex",
             f"[0:v]"
-            f"scale=1080:1920:flags=lanczos:force_original_aspect_ratio=increase,"
+            f"scale=1080:1920:flags=bicubic:force_original_aspect_ratio=increase,"
             f"crop=1080:1920,"
+            f"fps={config.FPS},"
             f"unsharp=5:5:1.0:5:5:0.0,"
-            f"subtitles={ass_safe}[v]",
+            f"subtitles='{ass_safe}'[v]",
             "-map", "[v]", "-map", "1:a",
             "-c:v", "libx264", "-preset", preset, "-crf", crf,
             "-b:v", bv, "-maxrate", bv, "-bufsize", str(int(bv.rstrip("M")) * 2) + "M",
             "-profile:v", "high", "-level", "4.2",
+            "-r", str(config.FPS),
             "-c:a", "aac", "-b:a", ba, "-ar", "48000",
             "-shortest", "-movflags", "+faststart",
             str(output_path),
         ]
 
     presets = [
-        ("slow", "16", "12M", "256k"),
         ("medium", "16", "10M", "256k"),
         ("fast", "20", "6M", "192k"),
+        ("slow", "16", "12M", "256k"),
     ]
 
-    for preset, crf, bv, ba in presets:
-        cmd = _build_cmd(preset, crf, bv, ba)
-        print(f"   Rendering ({preset}, {bv}, crf {crf})…")
-        try:
-            r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=RENDER_TIMEOUT)
-        except subprocess.TimeoutExpired:
-            print(f"   ⚠ {preset} timed out")
-            continue
-        if r.returncode == 0:
-            break
-        print(f"   ⚠ {preset} failed (code {r.returncode})")
-    else:
-        print("❌ All render presets failed")
-        sys.exit(1)
+    log_path = config.CACHE_DIR / "ffmpeg_render.log"
+    with open(log_path, "w", encoding="utf-8") as log_file:
+        for preset, crf, bv, ba in presets:
+            cmd = _build_cmd(preset, crf, bv, ba)
+            print(f"   Rendering ({preset}, {bv}, crf {crf})…")
+            try:
+                r = subprocess.run(cmd, stdout=log_file, stderr=subprocess.STDOUT, timeout=RENDER_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                print(f"   ⚠ {preset} timed out")
+                continue
+            if r.returncode == 0:
+                break
+            print(f"   ⚠ {preset} failed (code {r.returncode}). See log at {log_path}")
+        else:
+            print("❌ All render presets failed")
+            sys.exit(1)
 
     if output_path.exists():
         mb = output_path.stat().st_size / 1_048_576

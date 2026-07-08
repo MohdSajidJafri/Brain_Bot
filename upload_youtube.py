@@ -6,26 +6,12 @@ All API calls have timeouts to prevent indefinite hangs on CI.
 from __future__ import annotations
 
 import os
-import random
 import sys
 from pathlib import Path
 
 import config
 
-# Viral GTA / gaming hashtags
-HASHTAGS_POOL = [
-    "#GTAVI", "#GTA6", "#GamingShorts", "#Brainrot", "#GTA6Gameplay",
-    "#GamingMemes", "#NPC", "#GTA6Leaks", "#RockstarGames", "#GTA",
-    "#GamingFails", "#Shorts", "#GTA6Trailer", "#GTA6Moment", "#GTA6Online",
-    "#GrandTheftAuto", "#GamingVideos", "#GTA6Edit", "#GTA6Clip", "#ViralGaming",
-]
-
 YOUTUBE_API_TIMEOUT = 120  # 2 minute timeout for API calls
-
-
-def _pick_hashtags(n: int = 5) -> str:
-    """Pick n random hashtags."""
-    return " ".join(random.sample(HASHTAGS_POOL, min(n, len(HASHTAGS_POOL))))
 
 
 def _get_authenticated_service():
@@ -114,11 +100,8 @@ def upload_short(
         print(f"❌ Video not found: {video_path}")
         return ""
 
-    # Build description with hashtags
+    # Use description directly from pipeline
     desc = description.strip()
-    if desc:
-        desc += "\n\n"
-    desc += _pick_hashtags(7)
 
     print(f"📤 YouTube: uploading {video_path.name}…")
     print(f"   Title: {title}")
@@ -154,10 +137,11 @@ def upload_short(
             media_body=media,
         )
 
+        import socket
+        socket.setdefaulttimeout(YOUTUBE_API_TIMEOUT)
+
         response = None
         while response is None:
-            import socket
-            socket.setdefaulttimeout(YOUTUBE_API_TIMEOUT)
             status, response = request.next_chunk()
             if status:
                 pct = int(status.progress() * 100)

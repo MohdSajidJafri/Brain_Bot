@@ -7,6 +7,7 @@ All subprocess/API calls have timeouts to prevent indefinite hangs on CI.
 from __future__ import annotations
 
 import argparse
+import os
 import random
 import signal
 import subprocess
@@ -23,8 +24,8 @@ from render_short import render
 STYLES = ["chaotic", "meme", "story", "npc"]
 
 # Viral hashtag pools
-YT_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralshorts #funnymoments #gamer #clip #gamingcommunity #explore #fyp"
-IG_HASHTAGS = "#gaming #gamingclips #viralreels #reels #funnygaming #gamingvideos #explorepage #viralclips #gamer #funnymoments #trending #fyp"
+YT_HASHTAGS = "#GTA6 #GTAVI #gta6leaks #shorts #viral #trending #gta6gameplay #rockstargames #gaming #fyp #gtabrainrot"
+IG_HASHTAGS = "#GTA6 #GTAVI #gta6leaks #viralreels #reels #trending #explorepage #gta6gameplay #rockstargames #gaming #fyp #gtabrainrot"
 
 # Global timeout for the entire pipeline (40 min — CI has 45 min limit)
 import threading
@@ -42,24 +43,24 @@ def _build_description(style: str, title: str, platform: str = "youtube") -> str
     """Build catchy description with relevant hashtags."""
     hooks = {
         "chaotic": [
-            "Absolute CHAOS in GTA V 🤯 Watch till the end!",
-            "This is why GTA V is the BEST game ever made 💀",
-            "GTA V physics are BROKEN and I love it 😂",
+            "Absolute CHAOS in GTA 6 🤯 Watch till the end!",
+            "This is why GTA VI is the BEST game ever made 💀",
+            "GTA 6 physics are BROKEN and I love it 😂",
         ],
         "meme": [
-            "GTA V memes never get old 😂 Watch this!",
-            "Only in GTA V would this happen 💀",
-            "This is PEAK GTA V content right here 🏆",
+            "GTA 6 memes never get old 😂 Watch this!",
+            "Only in GTA VI would this happen 💀",
+            "This is PEAK GTA 6 content right here 🏆",
         ],
         "story": [
-            "Every NPC in GTA V has a story 📖 This one is CRAZY",
-            "The lore behind GTA V NPCs is DEEP 😱",
-            "This NPC has SEEN things in GTA V 👀",
+            "Every NPC in GTA 6 has a story 📖 This one is CRAZY",
+            "The lore behind GTA VI NPCs is DEEP 😱",
+            "This NPC has SEEN things in GTA 6 👀",
         ],
         "npc": [
-            "POV: You're an NPC in GTA V watching the player 💀",
-            "The NPC experience in GTA V is UNDERRATED 😂",
-            "NPCs in GTA V have enough trauma for a lifetime 💀",
+            "POV: You're an NPC in GTA VI watching the player 💀",
+            "The NPC experience in GTA 6 is UNDERRATED 😂",
+            "NPCs in GTA VI have enough trauma for a lifetime 💀",
         ],
     }
     hook = random.choice(hooks.get(style, hooks["chaotic"]))
@@ -71,7 +72,7 @@ def main() -> None:
     # Set an overall pipeline alarm timeout (Unix) or thread timer (cross-platform)
     timer = threading.Timer(PIPELINE_TIMEOUT, lambda: (
         print(f"\n❌ PIPELINE TIMEOUT after {PIPELINE_TIMEOUT//60} minutes — aborting"),
-        sys.exit(1)
+        os._exit(1)
     ))
     timer.daemon = True
     timer.start()
@@ -105,6 +106,7 @@ def main() -> None:
             print(f"\n📥 Step 1/6: Skipping download")
 
         # ── Step 2: Process or use existing clips ──
+        clips = []
         if args.skip_download:
             # On CI with --skip-download: use pre-committed clips directly
             print(f"\n✂️  Step 2/6: Using pre-committed clips from data/clips/…")
@@ -189,7 +191,11 @@ def main() -> None:
             ig_desc = _build_description(style, title, "instagram")
 
             from upload_youtube import upload_short
-            upload_short(video_path, title=title, description=yt_desc,
+            # Truncate title if needed to stay under safety threshold, then append tags
+            upload_title = f"{title} #shorts #gta6 #viral"
+            if len(upload_title) > 95:
+                upload_title = f"{title[:75]}... #shorts #gta6 #viral"
+            upload_short(video_path, title=upload_title, description=yt_desc,
                          privacy=args.privacy)
 
             from upload_instagram import upload_reel

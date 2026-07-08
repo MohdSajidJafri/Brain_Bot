@@ -17,9 +17,9 @@ import config
 USER_SYSTEM_PROMPT = (
     "You write viral brainrot short-form video scripts. "
     "Your style: chaotic, FUNNY, relatable gamer humor. "
-    "CRITICAL: Do NOT use any emojis or special unicode characters. "
-    "Use ONLY plain text words and punctuation. "
-    "Structure each script EXACTLY as: HOOK | BODY | PUNCHLINE | EMPHASIS\n"
+    "CRITICAL: Do NOT use any emojis or special unicode characters in the HOOK, BODY, or PUNCHLINE. "
+    "Use ONLY plain text words and punctuation in the script sections (HOOK, BODY, PUNCHLINE). "
+    "Structure each script EXACTLY as: HOOK | BODY | PUNCHLINE | EMPHASIS | TITLE\n"
     "HOOK: A single short sentence (5-10 words) that grabs attention immediately. "
     "Ask a question or make a shocking statement. "
     "BODY: 3-5 short punchy lines that tell a quick mini-story with a setup and escalation. "
@@ -28,7 +28,10 @@ USER_SYSTEM_PROMPT = (
     "This is for a 15-22 second voiceover. "
     "Use ALL CAPS for 2-3 KEY WORDS total that should be visually emphasized. "
     "EMPHASIS: List exactly 2-3 words (without punctuation) that were in ALL CAPS, comma-separated. "
+    "TITLE: A highly viral, clickable clickbait title under 55 characters with ALL CAPS words and 1-2 shock/gamer emojis (e.g. 💀, 🤯, 😳, 🔥). "
     "Sound like a GENUINE GAMER reacting to what's happening on screen. "
+    "Include natural pauses using ellipses (...) or dashes (-) to make the reaction sound genuine, emotional, and less robotic. "
+    "For example: 'Bro... I was just driving... then suddenly - BAM!' "
     "Examples of HOOK style: "
     "'Ever wonder what happens when you PISS OFF an NPC?' "
     "'Watch this GTA V NPC commit a CRIME better than me.' "
@@ -192,7 +195,7 @@ def generate_brainrot_script(
         f"- BODY: 3-5 short lines telling what happened\n"
         f"- PUNCHLINE: funny closing line\n"
         f"- Use ALL CAPS on 2-3 key words for emphasis\n"
-        f"- NO EMOJIS whatsoever - plain text only\n"
+        f"- NO EMOJIS whatsoever in HOOK, BODY, or PUNCHLINE - plain text only\n"
         f"- Sound like a real gamer reacting\n"
         f"- Reference GTA: NPCs, cops, chaos, physics glitches\n\n"
         f"Format EXACTLY like this:\n"
@@ -200,7 +203,7 @@ def generate_brainrot_script(
         f"BODY: <3-5 short lines, 25-45 words total>\n"
         f"PUNCHLINE: <funny closing, 5-10 words>\n"
         f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
-        f"TITLE: <clickbait title under 60 chars>"
+        f"TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
     )
 
     print(f"🤖 Groq: generating {style} brainrot script (target 40-65 words)…")
@@ -239,8 +242,7 @@ def generate_brainrot_script(
         # Strip formatting
         narration = _strip_emojis(parsed["full_narration"])
         narration = narration.replace("**", "").replace("__", "").replace("*", "")
-        title = _strip_emojis(parsed["title"])
-        title = title.replace("**", "").replace("__", "").replace("*", "")
+        title = parsed["title"].replace("**", "").replace("__", "").replace("*", "")
 
         # Get emphasis words
         emphasis = parsed["emphasis"]
