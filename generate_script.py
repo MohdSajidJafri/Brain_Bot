@@ -30,6 +30,7 @@ USER_SYSTEM_PROMPT = (
     "EMPHASIS: List exactly 2-3 words (without punctuation) that were in ALL CAPS, comma-separated. "
     "TITLE: A highly viral, clickable clickbait title under 55 characters with ALL CAPS words and 1-2 shock/gamer emojis (e.g. 💀, 🤯, 😳, 🔥). "
     "Sound like a GENUINE GAMER reacting to what's happening on screen. "
+    "CRITICAL: Break your thoughts into very short, punchy sentences. Use plenty of periods (.) and commas (,) to create natural pauses and vocal inflection. Avoid long, run-on sentences. "
     "Include natural pauses using ellipses (...) or dashes (-) to make the reaction sound genuine, emotional, and less robotic. "
     "For example: 'Bro... I was just driving... then suddenly - BAM!' "
     "Examples of HOOK style: "
