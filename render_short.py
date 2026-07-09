@@ -175,9 +175,10 @@ def render(
             "-i", str(clip_path),
             "-i", str(audio_path),
             "-filter_complex",
-            f"[0:v]"
-            f"scale=1080:1920:flags=bicubic:force_original_aspect_ratio=increase,"
-            f"crop=1080:1920,"
+            f"[0:v]split=2[bg][fg];"
+            f"[bg]scale=1080:1920:flags=bicubic:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5[bg_blurred];"
+            f"[fg]scale=1080:-2:flags=bicubic[fg_scaled];"
+            f"[bg_blurred][fg_scaled]overlay=0:(H-h)/2,"
             f"fps={config.FPS},"
             f"unsharp=5:5:1.0:5:5:0.0,"
             f"subtitles='{ass_safe}'[v]",

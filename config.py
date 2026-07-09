@@ -41,7 +41,7 @@ GROQ_API_KEY = _env("GROQ_API_KEY")
 GROQ_MODEL = _env("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # ── TTS ──────────────────────────────────────────────────────
-TTS_VOICE = _env("EDGE_TTS_VOICE", "en-US-EricNeural")
+TTS_VOICE = _env("EDGE_TTS_VOICE", "en-US-ChristopherNeural")
 TTS_RATE = _env("TTS_RATE", "-20%")
 
 # ── Brainrot style ───────────────────────────────────────────
