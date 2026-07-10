@@ -23,9 +23,9 @@ from render_short import render
 
 STYLES = ["chaotic", "meme", "story", "npc"]
 
-# Viral hashtag pools (combining best-performing generic gaming tags with targeted GTA 6 buzz tags)
-YT_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralshorts #funnymoments #gamer #clip #gamingcommunity #explore #fyp #GamingFails #ViralGaming #GTA6 #Shorts #GamingMemes #Brainrot #GTAVI #gta6leaks #gta6gameplay #gtabrainrot"
-IG_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralreels #funnymoments #gamer #clip #gamingcommunity #explorepage #fyp #GamingFails #ViralGaming #GTA6 #reels #GamingMemes #Brainrot #GTAVI #gta6leaks #gta6gameplay #gtabrainrot"
+# Viral hashtag pools (combining best-performing generic gaming tags, targeted GTA 6 buzz tags, and requested viral categories)
+YT_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralshorts #funnymoments #gamer #clip #gamingcommunity #explore #fyp #GamingFails #ViralGaming #GTA6 #Shorts #GamingMemes #Brainrot #GTAVI #gta6leaks #gta6gameplay #gtabrainrot #Viral #Trending #Facts #LifeHack #DIY #Satisfying #Amazing #Funny #Wow #MindBlown #Story #Challenge #Epic #Cool #Comedy #Minecraft #Football #Animals #Food #Dance"
+IG_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralreels #funnymoments #gamer #clip #gamingcommunity #explorepage #fyp #GamingFails #ViralGaming #GTA6 #reels #GamingMemes #Brainrot #GTAVI #gta6leaks #gta6gameplay #gtabrainrot #Viral #Trending #Facts #LifeHack #DIY #Satisfying #Amazing #Funny #Wow #MindBlown #Story #Challenge #Epic #Cool #Comedy #Minecraft #Football #Animals #Food #Dance"
 
 # Global timeout for the entire pipeline (40 min — CI has 45 min limit)
 import threading
