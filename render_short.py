@@ -138,9 +138,11 @@ def _build_ass_subtitles(
         style_name = "Emphasis" if is_emphasis else "Normal"
         color = palette[i % len(palette)]
         
-        # Random positions on screen for chaotic brainrot effect
-        rx = random.randint(250, 830)
-        ry = random.randint(600, 1500)
+        # Center-aligned alternating vertical positions with subtle random jitter
+        # This keeps captions highly readable, within safe mobile screen bounds,
+        # while retaining kinetic, chaotic, multicolored energy.
+        rx = 540 + random.randint(-40, 40)
+        ry = ALTERNATE_Y[i % len(ALTERNATE_Y)] + random.randint(-20, 20)
         ass += f"Dialogue: 0,{_t(ts)},{_t(te)},{style_name},,0,0,0,,{{\\c{color}\\an5\\pos({rx},{ry})}}{w}\n"
 
     return ass
