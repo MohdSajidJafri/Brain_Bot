@@ -117,7 +117,7 @@ def upload_short(
             "title": title[:100],
             "description": desc,
             "tags": [
-                "GTA 6", "GTA VI", "gta6leaks", "gta6gameplay", "shorts", "viral",
+                "GTA 6", "GTA VI", "gta6leaks", "genz", "genalpha", "brainrot", "youtubeshorts", "youtube", "gta6gameplay", "shorts", "viral",
                 "trending", "gtabrainrot", "gaming", "fyp", "gtaonline", "gta5",
                 "gtav", "funnygaming", "gamingclips", "rockstargames", "NPC"
             ],
