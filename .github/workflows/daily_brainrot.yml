@@ -13,10 +13,6 @@ on:
         type: choice
         options:
           - random
-          - chaotic
-          - meme
-          - story
-          - npc
       privacy:
         description: "YouTube privacy"
         required: true

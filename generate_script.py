@@ -6,6 +6,7 @@ No emojis — clean text only for TTS compatibility.
 from __future__ import annotations
 
 import os
+import random
 import re
 import sys
 from pathlib import Path
@@ -14,32 +15,48 @@ from groq import Groq
 
 import config
 
+# Forbidden/bannable words to ensure absolute content safety and brand protection
+FORBIDDEN_WORDS = [
+    "RAPE", "RAPED", "RAPING", "RAPIST", "NIGGER", "FAGGOT", "RETARD", "RETARDED",
+    "SUICIDE", "KILL MYSELF", "KILL YOURSELF", "SLUT", "WHORE", "CUNT", "DICK",
+    "PORN", "SEX", "PEDO", "PEDOPHILE", "TERRORIST", "BOMBING", "MASSACRE"
+]
+
 USER_SYSTEM_PROMPT = (
     "You write viral brainrot short-form video scripts. "
-    "Your style: chaotic, FUNNY, relatable gamer humor. "
-    "CRITICAL: Do NOT use any emojis or special unicode characters in the HOOK, BODY, or PUNCHLINE. "
-    "Use ONLY plain text words and punctuation in the script sections (HOOK, BODY, PUNCHLINE). "
-    "Structure each script EXACTLY as: HOOK | BODY | PUNCHLINE | EMPHASIS | TITLE\n"
-    "HOOK: A single short sentence (5-10 words) that grabs attention immediately. "
-    "Ask a question or make a shocking statement. "
-    "BODY: 3-5 short punchy lines that tell a quick mini-story with a setup and escalation. "
-    "PUNCHLINE: A single funny line (5-10 words) that closes the video. "
-    "Total script is EXACTLY 40-65 words across HOOK + BODY + PUNCHLINE. "
-    "This is for a 15-22 second voiceover. "
-    "Use ALL CAPS for 2-3 KEY WORDS total that should be visually emphasized. "
-    "EMPHASIS: List exactly 2-3 words (without punctuation) that were in ALL CAPS, comma-separated. "
-    "TITLE: A highly viral, clickable clickbait title under 55 characters with ALL CAPS words and 1-2 shock/gamer emojis (e.g. 💀, 🤯, 😳, 🔥). "
-    "Sound like a GENUINE GAMER reacting to what's happening on screen. "
+    "CRITICAL: Do NOT write generic gaming or NPC-focused content. The visual is GTA V gameplay, but the script topic must be completely random, weird, and unhinged brainrot humor. "
+    "CRITICAL: You must choose exactly ONE of the following 12 video formats to write this script on:\n"
+    "1. FAKE LIFE ADVICE: Sound profound, but slowly become completely unhinged (e.g. 'Never trust someone who says bro trust me. The reason billionaires wake up at 4 AM is because they are avoiding responsibilities. If your barber says lemme try something, start praying.')\n"
+    "2. CONSPIRACY BRAINROT: Start believable, then completely ruin it (e.g. 'Have you noticed pigeons never sit in traffic? That is because they already know where you are going. Your calculator has never asked how you are doing.')\n"
+    "3. NPC THOUGHTS: Reveal weird cashiers or server secrets (e.g. 'Every cashier has a favorite customer and it is never you. The waiter remembers exactly what embarrassing thing you ordered.')\n"
+    "4. RANDOM FACTS (90% FAKE): Say completely fake things confidently to start arguments (e.g. 'Bananas are WiFi-compatible if you believe hard enough. The moon actually rotates around Costco.')\n"
+    "5. POV VIDEOS: High-relatability gamer/social situations (e.g. 'POV: You are the friend who always says I am five minutes away. POV: You accidentally become the responsible adult. POV: The quiet kid starts talking.')\n"
+    "6. TIER LISTS: Rate completely random everyday things (e.g. 'Excuses for being late, ways to lose aura, school bathroom experiences, Indian relatives, barber conversations.')\n"
+    "7. IMAGINE EXPLAINING THIS: Contrast modern situations with history (e.g. 'Imagine explaining to a medieval knight that people spend twelve hundred dollars to watch TikTok.')\n"
+    "8. THINGS EVERYONE DOES BUT NEVER ADMITS: Universal quirks (e.g. 'Opening the fridge just to stare. Pretending to know directions. Re-reading the same text fifteen times. Walking faster when someone is behind you.')\n"
+    "9. FAKE MOTIVATIONAL SPEAKER: Speak like a clueless millionaire coach (e.g. 'The difference between you and Elon Musk is... absolutely nothing. Except money, companies, intelligence, connections...')\n"
+    "10. HOW IT FEELS: Expressive gamer/social emotions (e.g. 'How it feels to find money in old jeans. How it feels after sending a risky text. How it feels after saying you too to the waiter.')\n"
+    "11. RANKING PAIN LEVELS: Everyday mental/physical pain (e.g. 'USB upside down three times. Forgetting why you opened Google. Calling teacher mom.')\n"
+    "12. INTERNET LORE: Make up ridiculous history (e.g. 'Back in 2016 everyone communicated exclusively through Minion memes.')\n\n"
+    "CRITICAL: Do NOT use any emojis or special unicode characters in the HOOK, BODY, or PUNCHLINE. Use ONLY plain text words and punctuation in the script sections.\n"
+    "CRITICAL: You must choose one of these 9 scroll-stopping hooks to start your HOOK:\n"
+    "- 'Nobody talks about this...'\n"
+    "- 'I just realized something...'\n"
+    "- 'This might be the dumbest thing I\\'ve ever noticed...'\n"
+    "- 'Hear me out...'\n"
+    "- 'I refuse to believe I\\'m the only one...'\n"
+    "- 'Imagine if...'\n"
+    "- 'This is either genius or completely stupid.'\n"
+    "- 'I have a theory.'\n"
+    "- 'How it feels to...'\n\n"
     "CRITICAL: Design the script as a SEAMLESS INFINITE LOOP. The final sentence (PUNCHLINE) must be an open-ended, incomplete phrase that flows naturally and grammatically back into the beginning of the HOOK. For example, if HOOK is 'Why GTA 6 physics make no sense...', the PUNCHLINE should close with '...and that is exactly' so when the video loops, it reads: '...and that is exactly Why GTA 6 physics make no sense...'. "
-    "CRITICAL: Break your thoughts into very short, punchy sentences. Use plenty of periods (.) and commas (,) to create natural pauses and vocal inflection. Avoid long, run-on sentences. "
-    "Include natural pauses using ellipses (...) or dashes (-) to make the reaction sound genuine, emotional, and less robotic. "
-    "For example: 'Bro... I was just driving... then suddenly - BAM!' "
-    "Examples of HOOK style: "
-    "'Ever wonder what happens when you PISS OFF an NPC?' "
-    "'Watch this GTA V NPC commit a CRIME better than me.' "
-    "'This is why GTA V is the BEST game ever made.' "
-    "Then BODY tells what happens. Then PUNCHLINE delivers the laugh."
-    "Be FUNNY. Be RELATABLE. Think like a gamer streaming to friends."
+    "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech). Fail-safe: keep all content strictly safe-for-work and advertiser friendly.\n"
+    "Structure each script EXACTLY as:\n"
+    "HOOK: <A single short sentence, 5-10 words, starting with one of the scroll-stopping hooks>\n"
+    "BODY: <3-5 short punchy lines telling the unhinged/brainrot story or list, 25-45 words total>\n"
+    "PUNCHLINE: <A single funny loop-ended closing line, 5-10 words>\n"
+    "EMPHASIS: <comma-separated list of the 2-3 words in the script written in ALL CAPS for emphasis>\n"
+    "TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
 )
 
 # Fallback narration for when Groq API fails
@@ -189,26 +206,45 @@ def generate_brainrot_script(
 
     client = Groq(api_key=api_key)
 
+    # Randomly select a format category to keep scripts fresh and highly varied
+    formats = [
+        "FAKE LIFE ADVICE (profound advice that slowly becomes unhinged)",
+        "CONSPIRACY BRAINROT (start believable, then ruin it completely)",
+        "NPC THOUGHTS (weird cashiers or server secrets)",
+        "RANDOM FACTS 90% FAKE (confident fake statements that start comment arguments)",
+        "POV VIDEOS (relatable gamer or social situations)",
+        "TIER LISTS (rating completely random everyday items)",
+        "IMAGINE EXPLAINING THIS (explaining modern situations to historical figures)",
+        "THINGS EVERYONE DOES BUT NEVER ADMITS (universal quirks/loops)",
+        "FAKE MOTIVATIONAL SPEAKER (clueless millionaire coach advice)",
+        "HOW IT FEELS (gamer or social emotions)",
+        "RANKING PAIN LEVELS (everyday mental or physical pain)",
+        "INTERNET LORE (fake history memes)"
+    ]
+    selected_format = random.choice(formats)
+
     user_prompt = (
-        f"Write a FUNNY brainrot script for this GTA V gameplay clip.\n\n"
+        f"Generate a brainrot short script using the format category: {selected_format}.\n\n"
         f"Requirements:\n"
+        f"- Hook must start with one of the 9 scroll-stopping hooks listed in the system instructions.\n"
+        f"- Script topic must be completely unrelated to GTA or gaming, but highly unhinged and funny.\n"
         f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
-        f"- HOOK: grab attention in 5-10 words (question or shocking statement)\n"
-        f"- BODY: 3-5 short lines telling what happened\n"
-        f"- PUNCHLINE: funny closing line\n"
+        f"- HOOK: grab attention in 5-10 words\n"
+        f"- BODY: 3-5 short punchy lines (25-45 words total)\n"
+        f"- PUNCHLINE: loop-ended closing line (5-10 words)\n"
         f"- Use ALL CAPS on 2-3 key words for emphasis\n"
         f"- NO EMOJIS whatsoever in HOOK, BODY, or PUNCHLINE - plain text only\n"
-        f"- Sound like a real gamer reacting\n"
-        f"- Reference GTA: NPCs, cops, chaos, physics glitches\n\n"
+        f"- MUST be a SEAMLESS INFINITE LOOP where PUNCHLINE flows directly back into HOOK.\n"
+        f"- CRITICAL: Do NOT use any forbidden or bannable words (e.g. RAPE, slurs, hate speech, explicit violence).\n\n"
         f"Format EXACTLY like this:\n"
         f"HOOK: <attention grabber, 5-10 words>\n"
         f"BODY: <3-5 short lines, 25-45 words total>\n"
-        f"PUNCHLINE: <funny closing, 5-10 words>\n"
+        f"PUNCHLINE: <loop-ended closing, 5-10 words>\n"
         f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
         f"TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
     )
 
-    print(f"🤖 Groq: generating {style} brainrot script (target 40-65 words)…")
+    print(f"🤖 Groq: generating script using format [{selected_format}]…")
 
     best_result = {
         "full_narration": "",
@@ -245,6 +281,19 @@ def generate_brainrot_script(
         narration = _strip_emojis(parsed["full_narration"])
         narration = narration.replace("**", "").replace("__", "").replace("*", "")
         title = parsed["title"].replace("**", "").replace("__", "").replace("*", "")
+
+        # Strict Brand Safety check: scan narration and title for forbidden/bannable terms
+        combined_text = (narration + " " + title).upper()
+        has_forbidden = False
+        for forbidden in FORBIDDEN_WORDS:
+            # Match word boundary to avoid false positives (e.g. "grape")
+            if re.search(r'\b' + re.escape(forbidden) + r'\b', combined_text):
+                print(f"   ⚠ Safety filter triggered: found forbidden word '{forbidden}' - retrying...")
+                has_forbidden = True
+                break
+
+        if has_forbidden:
+            continue
 
         # Get emphasis words
         emphasis = parsed["emphasis"]
