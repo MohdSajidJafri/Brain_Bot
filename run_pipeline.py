@@ -160,12 +160,12 @@ def main() -> None:
         if not clean_narration:
             clean_narration = "GTA V BRAINROT"
 
-        # Style-based TTS voice selection (using en-US-ChristopherNeural as requested for male voiceover)
+        # Style-based TTS voice selection (premium Multilingual male voices for lifelike speech)
         style_voices = {
-            "chaotic": "en-US-ChristopherNeural",
-            "meme": "en-US-ChristopherNeural",
-            "story": "en-US-ChristopherNeural",
-            "npc": "en-US-ChristopherNeural",
+            "chaotic": "en-US-AndrewMultilingualNeural",
+            "meme": "en-US-AndrewMultilingualNeural",
+            "story": "en-US-BrianMultilingualNeural",
+            "npc": "en-US-BrianMultilingualNeural",
         }
         tts_voice = style_voices.get(style, config.TTS_VOICE)
 

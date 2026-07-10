@@ -39,18 +39,6 @@ def _get_dur(path: Path) -> float:
     return float(r.stdout.strip())
 
 
-def _has_audio(path: Path) -> bool:
-    try:
-        r = subprocess.run([
-            "ffprobe", "-v", "error",
-            "-select_streams", "a",
-            "-show_entries", "stream=codec_type",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            str(path)
-        ], capture_output=True, text=True, timeout=FFPROBE_TIMEOUT)
-        return "audio" in r.stdout
-    except Exception:
-        return False
 
 
 def _build_word_timings(clean_words: list[str], audio_dur: float,
@@ -162,8 +150,7 @@ def render(
 
     clip_dur = _get_dur(clip_path)
     audio_dur = _get_dur(audio_path)
-    has_audio = _has_audio(clip_path)
-    print(f"🎬 {clip_dur:.0f}s clip + {audio_dur:.0f}s audio (has audio: {has_audio})")
+    print(f"🎬 {clip_dur:.0f}s clip + {audio_dur:.0f}s audio")
 
     clean = narration.replace("**", "").replace("__", "").replace("*", "")
     clean = re.sub(r'[^\w\s\'",.!?;:\-]', '', clean).strip()
@@ -218,19 +205,9 @@ def render(
             f"subtitles='{ass_safe}'[v]"
         )
         
-        if has_audio:
-            filter_complex += (
-                f";[0:a]volume=0.15[game_vol];"
-                f"[1:a]volume=1.2[voice_vol];"
-                f"[game_vol][voice_vol]amix=inputs=2:duration=shortest:dropout_transition=0[a]"
-            )
-            audio_map = "[a]"
-        else:
-            audio_map = "1:a"
-            
         cmd.extend([
             "-filter_complex", filter_complex,
-            "-map", "[v]", "-map", audio_map,
+            "-map", "[v]", "-map", "1:a",
             "-c:v", "libx264", "-preset", preset, "-crf", crf,
             "-b:v", bv, "-maxrate", bv, "-bufsize", str(int(bv.rstrip("M")) * 2) + "M",
             "-profile:v", "high", "-level", "4.2",
