@@ -126,12 +126,10 @@ def _build_ass_subtitles(
         style_name = "Emphasis" if is_emphasis else "Normal"
         color = palette[i % len(palette)]
         
-        # Center-aligned alternating vertical positions with subtle random jitter
-        # This keeps captions highly readable, within safe mobile screen bounds,
-        # while retaining kinetic, chaotic, multicolored energy.
-        rx = 540 + random.randint(-40, 40)
-        ry = ALTERNATE_Y[i % len(ALTERNATE_Y)] + random.randint(-20, 20)
-        ass += f"Dialogue: 0,{_t(ts)},{_t(te)},{style_name},,0,0,0,,{{\\c{color}\\an5\\pos({rx},{ry})}}{w}\n"
+        # Center-aligned exactly at (540, 1000) with a subtle scale pop-in animation.
+        # Normal words pop from 125% to 100% size; Emphasis words pop from 130% to 100%.
+        zoom_start = 130 if is_emphasis else 125
+        ass += f"Dialogue: 0,{_t(ts)},{_t(te)},{style_name},,0,0,0,,{{\\c{color}\\an5\\pos(540,1000)\\fscx{zoom_start}\\fscy{zoom_start}\\t(0,80,\\fscx100\\fscy100)}}{w}\n"
 
     return ass
 

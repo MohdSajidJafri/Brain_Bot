@@ -42,7 +42,7 @@ GROQ_MODEL = _env("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # ── TTS ──────────────────────────────────────────────────────
 TTS_VOICE = _env("EDGE_TTS_VOICE", "en-US-BrianMultilingualNeural")
-TTS_RATE = _env("TTS_RATE", "-15%")
+TTS_RATE = _env("TTS_RATE", "-8%")
 
 # ── Brainrot style ───────────────────────────────────────────
 BRAINROT_STYLE = _env("BRAINROT_STYLE", "chaotic")
