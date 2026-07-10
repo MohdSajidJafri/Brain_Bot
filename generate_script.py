@@ -30,6 +30,7 @@ USER_SYSTEM_PROMPT = (
     "EMPHASIS: List exactly 2-3 words (without punctuation) that were in ALL CAPS, comma-separated. "
     "TITLE: A highly viral, clickable clickbait title under 55 characters with ALL CAPS words and 1-2 shock/gamer emojis (e.g. 💀, 🤯, 😳, 🔥). "
     "Sound like a GENUINE GAMER reacting to what's happening on screen. "
+    "CRITICAL: Design the script as a SEAMLESS INFINITE LOOP. The final sentence (PUNCHLINE) must be an open-ended, incomplete phrase that flows naturally and grammatically back into the beginning of the HOOK. For example, if HOOK is 'Why GTA 6 physics make no sense...', the PUNCHLINE should close with '...and that is exactly' so when the video loops, it reads: '...and that is exactly Why GTA 6 physics make no sense...'. "
     "CRITICAL: Break your thoughts into very short, punchy sentences. Use plenty of periods (.) and commas (,) to create natural pauses and vocal inflection. Avoid long, run-on sentences. "
     "Include natural pauses using ellipses (...) or dashes (-) to make the reaction sound genuine, emotional, and less robotic. "
     "For example: 'Bro... I was just driving... then suddenly - BAM!' "

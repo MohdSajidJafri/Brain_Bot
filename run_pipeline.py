@@ -65,7 +65,7 @@ def _build_description(style: str, title: str, platform: str = "youtube") -> str
     }
     hook = random.choice(hooks.get(style, hooks["chaotic"]))
     hashtags = YT_HASHTAGS if platform == "youtube" else IG_HASHTAGS
-    return f"{hook}\n\n{title}\n.\n.\n{hashtags}"
+    return f"{title}\n\n{hook}\n.\n.\n{hashtags}"
 
 
 def main() -> None:

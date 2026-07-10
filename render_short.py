@@ -191,11 +191,26 @@ def render(
             "-i", str(audio_path),
         ]
         
+        # Build dynamic visual zoom expression synchronized with emphasis words
+        zoom_intervals = []
+        for start, end, word in timings:
+            clean_word = word.strip(".,!?;:\"'-").upper()
+            if clean_word in [e.upper() for e in emphasis_words]:
+                zoom_intervals.append(f"between(t,{start:.3f},{end:.3f})")
+        
+        if zoom_intervals:
+            sum_of_betweens = "+".join(zoom_intervals)
+            zoom_expr = f"if({sum_of_betweens},0.88,1)"
+        else:
+            zoom_expr = "1"
+            
         filter_complex = (
             f"[0:v]split=2[bg][fg];"
             f"[bg]scale=1080:1920:flags=bicubic:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5[bg_blurred];"
             f"[fg]scale=1080:-2:flags=bicubic[fg_scaled];"
             f"[bg_blurred][fg_scaled]overlay=0:(H-h)/2,"
+            f"crop=w='1080*{zoom_expr}':h='1920*{zoom_expr}':x='(iw-ow)/2':y='(ih-oh)/2',"
+            f"scale=1080:1920:flags=bicubic,"
             f"fps={config.FPS},"
             f"unsharp=5:5:1.0:5:5:0.0,"
             f"subtitles='{ass_safe}'[v]"
