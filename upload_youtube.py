@@ -117,10 +117,13 @@ def upload_short(
             "title": title[:100],
             "description": desc,
             "tags": [
-                "GTA VI", "GTA 6", "Gaming", "Shorts", "Brainrot",
-                "GTA6Gameplay", "GamingMemes", "Rockstar",
+                "GTA 6", "GTA VI", "gta6leaks", "gta6gameplay", "shorts", "viral",
+                "trending", "gtabrainrot", "gaming", "fyp", "gtaonline", "gta5",
+                "gtav", "funnygaming", "gamingclips", "rockstargames", "NPC"
             ],
             "categoryId": "20",  # Gaming
+            "defaultLanguage": "en",
+            "defaultAudioLanguage": "en",
         },
         "status": {
             "privacyStatus": privacy,
