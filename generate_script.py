@@ -19,14 +19,17 @@ import config
 FORBIDDEN_WORDS = [
     "RAPE", "RAPED", "RAPING", "RAPIST", "NIGGER", "FAGGOT", "RETARD", "RETARDED",
     "SUICIDE", "KILL MYSELF", "KILL YOURSELF", "SLUT", "WHORE", "CUNT", "DICK",
-    "PORN", "SEX", "PEDO", "PEDOPHILE", "TERRORIST", "BOMBING", "MASSACRE"
+    "PORN", "SEX", "PEDO", "PEDOPHILE", "TERRORIST", "BOMBING", "MASSACRE",
+    "GOD", "JESUS", "ALLAH", "RELIGION", "RELIGIOUS", "CHURCH", "MOSQUE", "BIBLE", "QURAN",
+    "PRAY", "PRAYER", "PRAYING", "HEAVEN", "HELL", "SATAN", "DEVIL", "CHRISTIAN", "MUSLIM",
+    "JEW", "JEWISH", "BUDDHIST", "HINDU"
 ]
 
 USER_SYSTEM_PROMPT = (
     "You write viral brainrot short-form video scripts. "
     "CRITICAL: Do NOT write generic gaming or NPC-focused content. The visual is GTA V gameplay, but the script topic must be completely random, weird, and unhinged brainrot humor. "
     "CRITICAL: You must choose exactly ONE of the following 12 video formats to write this script on:\n"
-    "1. FAKE LIFE ADVICE: Sound profound, but slowly become completely unhinged (e.g. 'Never trust someone who says bro trust me. The reason billionaires wake up at 4 AM is because they are avoiding responsibilities. If your barber says lemme try something, start praying.')\n"
+    "1. FAKE LIFE ADVICE: Sound profound, but slowly become completely unhinged (e.g. 'Never trust someone who says bro trust me. The reason billionaires wake up at 4 AM is because they are avoiding responsibilities. If your barber says lemme try something, start screaming.')\n"
     "2. CONSPIRACY BRAINROT: Start believable, then completely ruin it (e.g. 'Have you noticed pigeons never sit in traffic? That is because they already know where you are going. Your calculator has never asked how you are doing.')\n"
     "3. NPC THOUGHTS: Reveal weird cashiers or server secrets (e.g. 'Every cashier has a favorite customer and it is never you. The waiter remembers exactly what embarrassing thing you ordered.')\n"
     "4. RANDOM FACTS (90% FAKE): Say completely fake things confidently to start arguments (e.g. 'Bananas are WiFi-compatible if you believe hard enough. The moon actually rotates around Costco.')\n"
@@ -50,7 +53,7 @@ USER_SYSTEM_PROMPT = (
     "- 'I have a theory.'\n"
     "- 'How it feels to...'\n\n"
     "CRITICAL: Design the script as a SEAMLESS INFINITE LOOP. The final sentence (PUNCHLINE) must be an open-ended, incomplete phrase that flows naturally and grammatically back into the beginning of the HOOK. For example, if HOOK is 'Why GTA 6 physics make no sense...', the PUNCHLINE should close with '...and that is exactly' so when the video loops, it reads: '...and that is exactly Why GTA 6 physics make no sense...'. "
-    "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech). Fail-safe: keep all content strictly safe-for-work and advertiser friendly.\n"
+    "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, sensitive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech, god, religion, church, mosque, faith, praying, or sensitive political/social issues). Fail-safe: keep all content strictly safe-for-work, secular, and advertiser friendly.\n"
     "Structure each script EXACTLY as:\n"
     "HOOK: <A single short sentence, 5-10 words, starting with one of the scroll-stopping hooks>\n"
     "BODY: <3-5 short punchy lines telling the unhinged/brainrot story or list, 25-45 words total>\n"
