@@ -24,8 +24,8 @@ from render_short import render
 STYLES = ["chaotic", "meme", "story", "npc"]
 
 # Viral hashtag pools (combining best-performing generic gaming tags, targeted GTA 6 buzz tags, and requested viral categories)
-YT_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralshorts #funnymoments #gamer #clip #gamingcommunity #explore #fyp #GamingFails #ViralGaming #GTA6 #Shorts #GamingMemes #Brainrot #GTAVI #gta6leaks #gta6gameplay #gtabrainrot #Viral #Trending #Facts #LifeHack #DIY #Satisfying #Amazing #Funny #Wow #MindBlown #Story #Challenge #Epic #Cool #Comedy #Minecraft #Football #Animals #Food #Dance"
-IG_HASHTAGS = "#gaming #gamingclips #gamingvideos #funnygaming #gamingmoments #viralreels #funnymoments #gamer #clip #gamingcommunity #explorepage #fyp #GamingFails #ViralGaming #GTA6 #reels #GamingMemes #Brainrot #GTAVI #gta6leaks #gta6gameplay #gtabrainrot #Viral #Trending #Facts #LifeHack #DIY #Satisfying #Amazing #Funny #Wow #MindBlown #Story #Challenge #Epic #Cool #Comedy #Minecraft #Football #Animals #Food #Dance"
+YT_HASHTAGS = "#shorts #gta6 #brainrot #funny"
+IG_HASHTAGS = "#reels #gta6 #brainrot #funny"
 
 # Global timeout for the entire pipeline (40 min — CI has 45 min limit)
 import threading
@@ -192,9 +192,9 @@ def main() -> None:
 
             from upload_youtube import upload_short
             # Truncate title if needed to stay under safety threshold, then append tags
-            upload_title = f"{title} #shorts #gta6 #viral"
+            upload_title = f"{title} #shorts #gta6"
             if len(upload_title) > 95:
-                upload_title = f"{title[:75]}... #shorts #gta6 #viral"
+                upload_title = f"{title[:75]}... #shorts #gta6"
             upload_short(video_path, title=upload_title, description=yt_desc,
                          privacy=args.privacy)
 
