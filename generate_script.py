@@ -9,6 +9,7 @@ import os
 import random
 import re
 import sys
+import time
 from pathlib import Path
 
 # Ensure UTF-8 console output on Windows to prevent UnicodeEncodeError with emojis
@@ -23,7 +24,8 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-from groq import Groq
+from groq import Groq, RateLimitError, APIStatusError
+
 
 import config
 
@@ -35,41 +37,48 @@ FORBIDDEN_WORDS = [
 ]
 
 USER_SYSTEM_PROMPT = (
-    "You write viral brainrot short-form video scripts. "
-    "CRITICAL: Do NOT write generic gaming or NPC-focused content. The visual is GTA V gameplay, but the script topic must be completely random, weird, and unhinged brainrot humor. "
-    "CRITICAL: You must choose exactly ONE of the following 12 video formats to write this script on:\n"
-    "1. FAKE LIFE ADVICE: Sound profound, but slowly become completely unhinged (e.g. 'Never trust someone who says bro trust me. The reason billionaires wake up at 4 AM is because they are avoiding responsibilities. If your barber says lemme try something, start screaming.')\n"
-    "2. CONSPIRACY BRAINROT: Start believable, then completely ruin it (e.g. 'Have you noticed pigeons never sit in traffic? That is because they already know where you are going. Your calculator has never asked how you are doing.')\n"
-    "3. NPC THOUGHTS: Reveal weird cashiers or server secrets (e.g. 'Every cashier has a favorite customer and it is never you. The waiter remembers exactly what embarrassing thing you ordered.')\n"
-    "4. RANDOM FACTS (90% FAKE): Say completely fake things confidently to start arguments (e.g. 'Bananas are WiFi-compatible if you believe hard enough. The moon actually rotates around Costco.')\n"
-    "5. POV VIDEOS: High-relatability gamer/social situations (e.g. 'POV: You are the friend who always says I am five minutes away. POV: You accidentally become the responsible adult. POV: The quiet kid starts talking.')\n"
-    "6. TIER LISTS: Rate completely random everyday things (e.g. 'Excuses for being late, ways to lose aura, school bathroom experiences, Indian relatives, barber conversations.')\n"
-    "7. IMAGINE EXPLAINING THIS: Contrast modern situations with history (e.g. 'Imagine explaining to a medieval knight that people spend twelve hundred dollars to watch TikTok.')\n"
-    "8. THINGS EVERYONE DOES BUT NEVER ADMITS: Universal quirks (e.g. 'Opening the fridge just to stare. Pretending to know directions. Re-reading the same text fifteen times. Walking faster when someone is behind you.')\n"
-    "9. FAKE MOTIVATIONAL SPEAKER: Speak like a clueless millionaire coach (e.g. 'The difference between you and Elon Musk is... absolutely nothing. Except money, companies, intelligence, connections...')\n"
-    "10. HOW IT FEELS: Expressive gamer/social emotions (e.g. 'How it feels to find money in old jeans. How it feels after sending a risky text. How it feels after saying you too to the waiter.')\n"
-    "11. RANKING PAIN LEVELS: Everyday mental/physical pain (e.g. 'USB upside down three times. Forgetting why you opened Google. Calling teacher mom.')\n"
-    "12. INTERNET LORE: Make up ridiculous history (e.g. 'Back in 2016 everyone communicated exclusively through Minion memes.')\n\n"
-    "CRITICAL: Absolute rule: ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS. Script text must be 100% plain words and standard punctuation only. The text-to-speech voice synthesizer reads emoji names out loud and ruins the audio. Emojis are ONLY allowed in TITLE.\n"
-    "CRITICAL: You must choose one of these 9 scroll-stopping hooks to start your HOOK:\n"
-    "- 'Nobody talks about this...'\n"
-    "- 'I just realized something...'\n"
-    "- 'This might be the dumbest thing I\\'ve ever noticed...'\n"
-    "- 'Hear me out...'\n"
-    "- 'I refuse to believe I\\'m the only one...'\n"
-    "- 'Imagine if...'\n"
-    "- 'This is either genius or completely stupid.'\n"
-    "- 'I have a theory.'\n"
-    "- 'How it feels to...'\n\n"
-    "CRITICAL: The script must have a DEFINITIVE, COMPLETE ENDING. Do NOT use an infinite loop or open-ended trailing sentence. The final sentence (PUNCHLINE) must be a complete, punchy, and hilarious conclusion sentence that brings the story/joke to a decisive end.\n"
-    "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, sensitive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech). Fail-safe: keep all content strictly safe-for-work, secular, and advertiser friendly.\n"
-    "Structure each script EXACTLY as:\n"
-    "HOOK: <A single short sentence, 5-10 words, starting with one of the scroll-stopping hooks>\n"
-    "BODY: <3-5 short punchy lines telling the unhinged/brainrot story or list, 25-45 words total>\n"
-    "PUNCHLINE: <A single hilarious definitive concluding punchline, 5-10 words>\n"
-    "EMPHASIS: <comma-separated list of the 2-3 words in the script written in ALL CAPS for emphasis>\n"
-    "TITLE: <viral clickbait title under 55 chars with 1-2 shock emojis (e.g. 💀, 🤯)>"
+    "You write viral, unhinged brainrot short-form video scripts. "
+    "Rules:\n"
+    "1. Total length must be 40-65 words across HOOK, BODY, and PUNCHLINE.\n"
+    "2. ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS. Emojis are only allowed in TITLE.\n"
+    "3. Definitive, complete ending with a punchline (NO looping or trailing sentences).\n"
+    "4. Include 2-3 ALL CAPS words for emphasis.\n"
+    "5. Keep content strictly safe-for-work, secular, and advertiser friendly.\n"
+    "6. Output EXACT format:\n"
+    "HOOK: <5-10 words>\n"
+    "BODY: <25-45 words, 3-5 punchy lines>\n"
+    "PUNCHLINE: <5-10 words, decisive ending>\n"
+    "EMPHASIS: <word1, word2>\n"
+    "TITLE: <viral title under 55 chars with 1-2 shock emojis>"
 )
+
+SCROLL_HOOKS = [
+    "Nobody talks about this...",
+    "I just realized something...",
+    "This might be the dumbest thing I've ever noticed...",
+    "Hear me out...",
+    "I refuse to believe I'm the only one...",
+    "Imagine if...",
+    "This is either genius or completely stupid.",
+    "I have a theory.",
+    "How it feels to...",
+]
+
+FORMAT_CATEGORIES = [
+    "FAKE LIFE ADVICE (profound advice that slowly becomes unhinged)",
+    "CONSPIRACY BRAINROT (start believable, then completely ruin it)",
+    "NPC THOUGHTS (weird cashiers or server secrets)",
+    "RANDOM FACTS 90% FAKE (confident fake statements that start comment arguments)",
+    "POV VIDEOS (relatable gamer or social situations)",
+    "TIER LISTS (rating completely random everyday items)",
+    "IMAGINE EXPLAINING THIS (explaining modern situations to historical figures)",
+    "THINGS EVERYONE DOES BUT NEVER ADMITS (universal quirks/loops)",
+    "FAKE MOTIVATIONAL SPEAKER (clueless millionaire coach advice)",
+    "HOW IT FEELS (gamer or social emotions)",
+    "RANKING PAIN LEVELS (everyday mental or physical pain)",
+    "INTERNET LORE (fake history memes)"
+]
+
 
 # Diverse fallback narration pool to guarantee variety even during network/API failures
 FALLBACK_SCRIPTS = [
@@ -295,22 +304,7 @@ def generate_brainrot_script(
         return _get_random_fallback()
 
     client = Groq(api_key=api_key)
-
-    # 12 distinct format categories to guarantee wide variety across runs
-    formats = [
-        "FAKE LIFE ADVICE (profound advice that slowly becomes unhinged)",
-        "CONSPIRACY BRAINROT (start believable, then ruin it completely)",
-        "NPC THOUGHTS (weird cashiers or server secrets)",
-        "RANDOM FACTS 90% FAKE (confident fake statements that start comment arguments)",
-        "POV VIDEOS (relatable gamer or social situations)",
-        "TIER LISTS (rating completely random everyday items)",
-        "IMAGINE EXPLAINING THIS (explaining modern situations to historical figures)",
-        "THINGS EVERYONE DOES BUT NEVER ADMITS (universal quirks/loops)",
-        "FAKE MOTIVATIONAL SPEAKER (clueless millionaire coach advice)",
-        "HOW IT FEELS (gamer or social emotions)",
-        "RANKING PAIN LEVELS (everyday mental or physical pain)",
-        "INTERNET LORE (fake history memes)"
-    ]
+    model_name = config.GROQ_MODEL or "openai/gpt-oss-20b"
 
     best_result = {
         "full_narration": "",
@@ -319,31 +313,29 @@ def generate_brainrot_script(
         "word_count": 0,
     }
 
-    model_name = config.GROQ_MODEL or "openai/gpt-oss-20b"
+    # Limit retries to 2 to stay well within Groq TPM and RPM rate limits
+    for attempt in range(2):
+        selected_format = random.choice(FORMAT_CATEGORIES)
+        selected_hook = random.choice(SCROLL_HOOKS)
 
-    for attempt in range(3):
-        selected_format = random.choice(formats)
         user_prompt = (
-            f"Generate a brainrot short script using the format category: {selected_format}.\n\n"
+            f"Write a {style} brainrot short script using category: {selected_format}.\n"
+            f"Start the HOOK with: '{selected_hook}'\n"
             f"Requirements:\n"
-            f"- Hook must start with one of the 9 scroll-stopping hooks listed in the system instructions.\n"
-            f"- Script topic must be completely unrelated to GTA or gaming, but highly unhinged and funny.\n"
             f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
-            f"- HOOK: grab attention in 5-10 words\n"
-            f"- BODY: 3-5 short punchy lines (25-45 words total)\n"
+            f"- HOOK: attention grabber in 5-10 words starting with '{selected_hook}'\n"
+            f"- BODY: 3-5 punchy lines (25-45 words total)\n"
             f"- PUNCHLINE: definitive, complete concluding punchline (5-10 words)\n"
-            f"- Use ALL CAPS on 2-3 key words for emphasis\n"
-            f"- ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS — plain text words only (emojis are only allowed in TITLE)\n"
-            f"- MUST have a DEFINITIVE, COMPLETE ENDING (NO looping mechanism or open-ended trailing sentences)\n"
-            f"- CRITICAL: Do NOT use any forbidden or bannable words (e.g. hate speech, slurs, explicit violence).\n\n"
+            f"- ALL CAPS on 2-3 key words for emphasis\n"
+            f"- ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS — plain text words only (emojis are only in TITLE)\n"
+            f"- MUST have a DEFINITIVE, COMPLETE ENDING (NO looping mechanism or trailing sentences)\n\n"
             f"Format EXACTLY like this:\n"
-            f"HOOK: <attention grabber, 5-10 words>\n"
-            f"BODY: <3-5 short lines, 25-45 words total>\n"
-            f"PUNCHLINE: <definitive closing punchline, 5-10 words>\n"
-            f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
-            f"TITLE: <viral clickbait title under 55 chars with 1-2 shock emojis (e.g. 💀, 🤯)>"
+            f"HOOK: <5-10 words>\n"
+            f"BODY: <25-45 words>\n"
+            f"PUNCHLINE: <5-10 words>\n"
+            f"EMPHASIS: <word1, word2>\n"
+            f"TITLE: <viral title under 55 chars with 1-2 shock emojis>"
         )
-
 
         print(f"🤖 Groq [{model_name}]: generating script using format [{selected_format.split('(')[0].strip()}] (attempt {attempt + 1})…")
 
@@ -354,14 +346,27 @@ def generate_brainrot_script(
                     {"role": "system", "content": USER_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.95,
-                max_tokens=4096,  # Sizable allowance for reasoning models (e.g., openai/gpt-oss-20b) + output
-                timeout=45,
+                temperature=0.92,
+                max_tokens=2048,  # Optimal limit (~1500 total tokens per request) - safe from 429 TPM exhaustion and reasoning truncation
+                timeout=35,
             )
+        except RateLimitError as e:
+            print(f"   ⚠ Groq 429 Rate Limit hit (attempt {attempt + 1}): {e}")
+            if attempt < 1:
+                wait_secs = 12
+                print(f"   ⏳ Waiting {wait_secs}s for rate limit window to reset…")
+                time.sleep(wait_secs)
+                continue
+            else:
+                print("   ⚠ Rate limit exceeded — selecting diverse fallback script")
+                return _get_random_fallback()
         except Exception as e:
             print(f"   ⚠ Groq API error (attempt {attempt + 1}): {e}")
-            if attempt == 2 and not best_result["full_narration"]:
-                print(f"   ⚠ Using fallback narration from pool")
+            if attempt < 1:
+                time.sleep(2)
+                continue
+            elif not best_result["full_narration"]:
+                print("   ⚠ Using fallback narration from pool")
                 return _get_random_fallback()
             continue
 
@@ -408,13 +413,14 @@ def generate_brainrot_script(
         if 35 <= wc <= 75:
             break
 
-    # If we got nothing useful after all attempts, use a random fallback script
+    # If we got nothing useful after attempts, use a random fallback script
     if not best_result["full_narration"]:
         print("   ⚠ No valid script generated, selecting diverse fallback")
         return _get_random_fallback()
 
     print(f"   📝 {best_result['word_count']} words, {len(best_result['emphasis'])} emphasis words")
     return best_result["full_narration"], best_result["title"], best_result["emphasis"]
+
 
 
 # Backward compatibility for old code that expects 2 return values
