@@ -50,7 +50,7 @@ USER_SYSTEM_PROMPT = (
     "10. HOW IT FEELS: Expressive gamer/social emotions (e.g. 'How it feels to find money in old jeans. How it feels after sending a risky text. How it feels after saying you too to the waiter.')\n"
     "11. RANKING PAIN LEVELS: Everyday mental/physical pain (e.g. 'USB upside down three times. Forgetting why you opened Google. Calling teacher mom.')\n"
     "12. INTERNET LORE: Make up ridiculous history (e.g. 'Back in 2016 everyone communicated exclusively through Minion memes.')\n\n"
-    "CRITICAL: Do NOT use any emojis or special unicode characters in the HOOK, BODY, or PUNCHLINE. Use ONLY plain text words and punctuation in the script sections.\n"
+    "CRITICAL: Absolute rule: ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS. Script text must be 100% plain words and standard punctuation only. The text-to-speech voice synthesizer reads emoji names out loud and ruins the audio. Emojis are ONLY allowed in TITLE.\n"
     "CRITICAL: You must choose one of these 9 scroll-stopping hooks to start your HOOK:\n"
     "- 'Nobody talks about this...'\n"
     "- 'I just realized something...'\n"
@@ -61,14 +61,14 @@ USER_SYSTEM_PROMPT = (
     "- 'This is either genius or completely stupid.'\n"
     "- 'I have a theory.'\n"
     "- 'How it feels to...'\n\n"
-    "CRITICAL: Design the script as a SEAMLESS INFINITE LOOP. The final sentence (PUNCHLINE) must be an open-ended, incomplete phrase that flows naturally and grammatically back into the beginning of the HOOK. For example, if HOOK is 'Why GTA 6 physics make no sense...', the PUNCHLINE should close with '...and that is exactly' so when the video loops, it reads: '...and that is exactly Why GTA 6 physics make no sense...'. "
+    "CRITICAL: The script must have a DEFINITIVE, COMPLETE ENDING. Do NOT use an infinite loop or open-ended trailing sentence. The final sentence (PUNCHLINE) must be a complete, punchy, and hilarious conclusion sentence that brings the story/joke to a decisive end.\n"
     "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, sensitive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech). Fail-safe: keep all content strictly safe-for-work, secular, and advertiser friendly.\n"
     "Structure each script EXACTLY as:\n"
     "HOOK: <A single short sentence, 5-10 words, starting with one of the scroll-stopping hooks>\n"
     "BODY: <3-5 short punchy lines telling the unhinged/brainrot story or list, 25-45 words total>\n"
-    "PUNCHLINE: <A single funny loop-ended closing line, 5-10 words>\n"
+    "PUNCHLINE: <A single hilarious definitive concluding punchline, 5-10 words>\n"
     "EMPHASIS: <comma-separated list of the 2-3 words in the script written in ALL CAPS for emphasis>\n"
-    "TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
+    "TITLE: <viral clickbait title under 55 chars with 1-2 shock emojis (e.g. 💀, 🤯)>"
 )
 
 # Diverse fallback narration pool to guarantee variety even during network/API failures
@@ -76,7 +76,7 @@ FALLBACK_SCRIPTS = [
     (
         "EVER wonder what happens when you mess with physics? "
         "Bro I was just walking NORMAL and a flying tractor SPAWNS on my forehead. "
-        "The simulation is glitching and that is why you should know",
+        "The simulation is officially broken and nobody can fix it.",
         "When Physics Completely Break 💀",
         ["EVER", "NORMAL", "SPAWNS"]
     ),
@@ -84,49 +84,49 @@ FALLBACK_SCRIPTS = [
         "Nobody talks about this refrigerator conspiracy. "
         "Every time you open the fridge door at 3 AM looking for CHEESE, "
         "the leftover pizza is actively plotting its REVENGE. "
-        "Stay vigilant because this is why",
+        "Close the door and walk away slowly.",
         "The Midnight Fridge Conspiracy 🤯",
         ["CHEESE", "REVENGE"]
     ),
     (
         "I just realized something about elevator buttons. "
         "Pressing the button SEVENTEEN times does not make it arrive FASTER. "
-        "It just lets the elevator know you are PANICKING and that is why",
+        "It just lets the elevator know you are PANICKING with zero patience.",
         "The Elevator Secret Nobody Admits 💀",
         ["SEVENTEEN", "FASTER", "PANICKING"]
     ),
     (
         "This might be the dumbest thing I have ever noticed. "
         "Your phone BATTERY drops from twenty percent to one percent in four seconds, "
-        "but stays on ONE percent for three business days because",
+        "but stays on ONE percent for three whole business days. Science cannot explain this.",
         "Why Your Phone Battery Lies To You 🔋",
         ["BATTERY", "ONE"]
     ),
     (
         "Hear me out about microwave timers. "
         "Opening the door with exactly ONE second remaining makes you feel like an elite SECRET agent "
-        "defusing a bomb, and that is exactly how",
+        "defusing a bomb in an intense action movie.",
         "How It Feels To Defuse The Microwave ⏱️",
         ["ONE", "SECRET"]
     ),
     (
         "I refuse to believe I am the only one who does this. "
         "You lower the CAR radio volume just to see the street signs CLEARER. "
-        "Your eyes need SILENCE to function and this explains why",
+        "Your eyes apparently require total SILENCE to read letters.",
         "Why Turning Down Music Helps You See 👀",
         ["CAR", "CLEARER", "SILENCE"]
     ),
     (
         "I have a theory about ceiling fans. "
-        "If you stare at a spinning fan long enough, it starts communicating in MORSE code "
-        "about tomorrow's weather forecast, and that is why",
+        "If you stare at a spinning fan long enough, it starts transmitting SECRET messages directly into your brain. "
+        "Do not make eye contact with it.",
         "The Ceiling Fan Secret Code 🤯",
-        ["MORSE"]
+        ["SECRET"]
     ),
     (
         "How it feels to finally find that missing song. "
         "Searching random nonsense lyrics on GOOGLE for three months until you find the exact MASTERPIECE "
-        "is peak dopamine, which is why",
+        "is pure unmatched bliss.",
         "Finding That ONE Song You Forgot 🎵",
         ["GOOGLE", "MASTERPIECE"]
     ),
@@ -134,19 +134,21 @@ FALLBACK_SCRIPTS = [
 
 
 def _strip_emojis(text: str) -> str:
-    """Remove emoji characters from text."""
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"
-        "\U0001F300-\U0001F5FF"
-        "\U0001F680-\U0001F6FF"
-        "\U0001F1E0-\U0001F1FF"
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "]+",
-        flags=re.UNICODE,
-    )
-    return emoji_pattern.sub("", text).strip()
+    """Remove all emoji and pictorial/symbol characters from text to protect TTS audio."""
+    import unicodedata
+    result = []
+    for char in text:
+        cat = unicodedata.category(char)
+        # Keep standard letters, numbers, punctuation, spaces
+        if cat.startswith(('L', 'N', 'P', 'Z')) or char in ' \t\n':
+            cp = ord(char)
+            # Filter out dingbats, emojis, variation selectors, zero-width joiners
+            if (0x1F000 <= cp <= 0x1FAFF) or (0x2600 <= cp <= 0x27BF) or (0xFE00 <= cp <= 0xFE0F) or cp == 0x200D:
+                continue
+            result.append(char)
+    cleaned = ''.join(result)
+    return re.sub(r'\s+', ' ', cleaned).strip()
+
 
 
 def _clean_markdown(text: str) -> str:
@@ -329,18 +331,19 @@ def generate_brainrot_script(
             f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
             f"- HOOK: grab attention in 5-10 words\n"
             f"- BODY: 3-5 short punchy lines (25-45 words total)\n"
-            f"- PUNCHLINE: loop-ended closing line (5-10 words)\n"
+            f"- PUNCHLINE: definitive, complete concluding punchline (5-10 words)\n"
             f"- Use ALL CAPS on 2-3 key words for emphasis\n"
-            f"- NO EMOJIS whatsoever in HOOK, BODY, or PUNCHLINE - plain text only\n"
-            f"- MUST be a SEAMLESS INFINITE LOOP where PUNCHLINE flows directly back into HOOK.\n"
+            f"- ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS — plain text words only (emojis are only allowed in TITLE)\n"
+            f"- MUST have a DEFINITIVE, COMPLETE ENDING (NO looping mechanism or open-ended trailing sentences)\n"
             f"- CRITICAL: Do NOT use any forbidden or bannable words (e.g. hate speech, slurs, explicit violence).\n\n"
             f"Format EXACTLY like this:\n"
             f"HOOK: <attention grabber, 5-10 words>\n"
             f"BODY: <3-5 short lines, 25-45 words total>\n"
-            f"PUNCHLINE: <loop-ended closing, 5-10 words>\n"
+            f"PUNCHLINE: <definitive closing punchline, 5-10 words>\n"
             f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
-            f"TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
+            f"TITLE: <viral clickbait title under 55 chars with 1-2 shock emojis (e.g. 💀, 🤯)>"
         )
+
 
         print(f"🤖 Groq [{model_name}]: generating script using format [{selected_format.split('(')[0].strip()}] (attempt {attempt + 1})…")
 

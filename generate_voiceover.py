@@ -68,6 +68,22 @@ async def _synthesize_with_timing(
     return sentences
 
 
+def _strip_emojis(text: str) -> str:
+    """Remove all emoji and pictorial/symbol characters from text to prevent TTS speaking emoji names."""
+    import unicodedata
+    import re
+    result = []
+    for char in text:
+        cat = unicodedata.category(char)
+        if cat.startswith(('L', 'N', 'P', 'Z')) or char in ' \t\n':
+            cp = ord(char)
+            if (0x1F000 <= cp <= 0x1FAFF) or (0x2600 <= cp <= 0x27BF) or (0xFE00 <= cp <= 0xFE0F) or cp == 0x200D:
+                continue
+            result.append(char)
+    cleaned = ''.join(result)
+    return re.sub(r'\s+', ' ', cleaned).strip()
+
+
 def synthesize_brainrot_voiceover(
     narration: str,
     output_path: Path | None = None,
@@ -90,8 +106,12 @@ def synthesize_brainrot_voiceover(
     voice = voice or config.TTS_VOICE
 
     rate = rate or config.TTS_RATE
+
+    # Strictly strip all emojis and non-speech symbols from narration before sending to TTS
+    clean_narration = _strip_emojis(narration)
+
     # Normalize casing to prevent Edge TTS from spelling out ALL CAPS emphasis words
-    words = narration.split()
+    words = clean_narration.split()
     normalized_words = []
     for w in words:
         clean_w = w.strip(".,!?;:\"'-")
@@ -103,6 +123,7 @@ def synthesize_brainrot_voiceover(
         else:
             normalized_words.append(w)
     tts_text = " ".join(normalized_words)
+
 
     print(f"🔊 Edge TTS: synthesizing voiceover ({voice} at {rate} speed)…")
     try:
