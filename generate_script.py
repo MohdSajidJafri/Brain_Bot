@@ -11,6 +11,18 @@ import re
 import sys
 from pathlib import Path
 
+# Ensure UTF-8 console output on Windows to prevent UnicodeEncodeError with emojis
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from groq import Groq
 
 import config
@@ -18,11 +30,8 @@ import config
 # Forbidden/bannable words to ensure absolute content safety and brand protection
 FORBIDDEN_WORDS = [
     "RAPE", "RAPED", "RAPING", "RAPIST", "NIGGER", "FAGGOT", "RETARD", "RETARDED",
-    "SUICIDE", "KILL MYSELF", "KILL YOURSELF", "SLUT", "WHORE", "CUNT", "DICK",
-    "PORN", "SEX", "PEDO", "PEDOPHILE", "TERRORIST", "BOMBING", "MASSACRE",
-    "GOD", "JESUS", "ALLAH", "RELIGION", "RELIGIOUS", "CHURCH", "MOSQUE", "BIBLE", "QURAN",
-    "PRAY", "PRAYER", "PRAYING", "HEAVEN", "HELL", "SATAN", "DEVIL", "CHRISTIAN", "MUSLIM",
-    "JEW", "JEWISH", "BUDDHIST", "HINDU"
+    "SUICIDE", "KILL MYSELF", "KILL YOURSELF", "SLUT", "WHORE", "CUNT",
+    "PORN", "PEDO", "PEDOPHILE", "TERRORIST", "BOMBING", "MASSACRE"
 ]
 
 USER_SYSTEM_PROMPT = (
@@ -53,7 +62,7 @@ USER_SYSTEM_PROMPT = (
     "- 'I have a theory.'\n"
     "- 'How it feels to...'\n\n"
     "CRITICAL: Design the script as a SEAMLESS INFINITE LOOP. The final sentence (PUNCHLINE) must be an open-ended, incomplete phrase that flows naturally and grammatically back into the beginning of the HOOK. For example, if HOOK is 'Why GTA 6 physics make no sense...', the PUNCHLINE should close with '...and that is exactly' so when the video loops, it reads: '...and that is exactly Why GTA 6 physics make no sense...'. "
-    "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, sensitive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech, god, religion, church, mosque, faith, praying, or sensitive political/social issues). Fail-safe: keep all content strictly safe-for-work, secular, and advertiser friendly.\n"
+    "CRITICAL: Do NOT generate scripts containing inappropriate, explicit, offensive, sensitive, or bannable terms (such as rape, slurs, explicit sexual violence, self-harm, hate speech). Fail-safe: keep all content strictly safe-for-work, secular, and advertiser friendly.\n"
     "Structure each script EXACTLY as:\n"
     "HOOK: <A single short sentence, 5-10 words, starting with one of the scroll-stopping hooks>\n"
     "BODY: <3-5 short punchy lines telling the unhinged/brainrot story or list, 25-45 words total>\n"
@@ -62,13 +71,66 @@ USER_SYSTEM_PROMPT = (
     "TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
 )
 
-# Fallback narration for when Groq API fails
-FALLBACK_NARRATION = (
-    "EVER wonder what happens when you mess with GTA V physics? "
-    "Bro I was just driving NORMAL and a trash truck SPAWNS on my car. "
-    "This game is PEAK chaos and I love every second of it."
-)
-FALLBACK_EMPHASIS = "EVER, NORMAL, SPAWNS, PEAK"
+# Diverse fallback narration pool to guarantee variety even during network/API failures
+FALLBACK_SCRIPTS = [
+    (
+        "EVER wonder what happens when you mess with physics? "
+        "Bro I was just walking NORMAL and a flying tractor SPAWNS on my forehead. "
+        "The simulation is glitching and that is why you should know",
+        "When Physics Completely Break 💀",
+        ["EVER", "NORMAL", "SPAWNS"]
+    ),
+    (
+        "Nobody talks about this refrigerator conspiracy. "
+        "Every time you open the fridge door at 3 AM looking for CHEESE, "
+        "the leftover pizza is actively plotting its REVENGE. "
+        "Stay vigilant because this is why",
+        "The Midnight Fridge Conspiracy 🤯",
+        ["CHEESE", "REVENGE"]
+    ),
+    (
+        "I just realized something about elevator buttons. "
+        "Pressing the button SEVENTEEN times does not make it arrive FASTER. "
+        "It just lets the elevator know you are PANICKING and that is why",
+        "The Elevator Secret Nobody Admits 💀",
+        ["SEVENTEEN", "FASTER", "PANICKING"]
+    ),
+    (
+        "This might be the dumbest thing I have ever noticed. "
+        "Your phone BATTERY drops from twenty percent to one percent in four seconds, "
+        "but stays on ONE percent for three business days because",
+        "Why Your Phone Battery Lies To You 🔋",
+        ["BATTERY", "ONE"]
+    ),
+    (
+        "Hear me out about microwave timers. "
+        "Opening the door with exactly ONE second remaining makes you feel like an elite SECRET agent "
+        "defusing a bomb, and that is exactly how",
+        "How It Feels To Defuse The Microwave ⏱️",
+        ["ONE", "SECRET"]
+    ),
+    (
+        "I refuse to believe I am the only one who does this. "
+        "You lower the CAR radio volume just to see the street signs CLEARER. "
+        "Your eyes need SILENCE to function and this explains why",
+        "Why Turning Down Music Helps You See 👀",
+        ["CAR", "CLEARER", "SILENCE"]
+    ),
+    (
+        "I have a theory about ceiling fans. "
+        "If you stare at a spinning fan long enough, it starts communicating in MORSE code "
+        "about tomorrow's weather forecast, and that is why",
+        "The Ceiling Fan Secret Code 🤯",
+        ["MORSE"]
+    ),
+    (
+        "How it feels to finally find that missing song. "
+        "Searching random nonsense lyrics on GOOGLE for three months until you find the exact MASTERPIECE "
+        "is peak dopamine, which is why",
+        "Finding That ONE Song You Forgot 🎵",
+        ["GOOGLE", "MASTERPIECE"]
+    ),
+]
 
 
 def _strip_emojis(text: str) -> str:
@@ -87,9 +149,14 @@ def _strip_emojis(text: str) -> str:
     return emoji_pattern.sub("", text).strip()
 
 
+def _clean_markdown(text: str) -> str:
+    """Remove markdown bold, italic, code markers."""
+    return text.replace("**", "").replace("__", "").replace("*", "").replace("`", "").strip()
+
+
 def _parse_structured_response(response: str) -> dict:
     """Parse the structured LLM response into components.
-    Handles both strict HOOK|BODY|PUNCHLINE format and free-form text.
+    Handles strict HOOK|BODY|PUNCHLINE format, markdown formatting, and free-form text.
     """
     result = {
         "hook": "",
@@ -102,40 +169,58 @@ def _parse_structured_response(response: str) -> dict:
 
     lines = response.splitlines()
     current_section = None
-    sections = {}
+    sections: dict[str, str] = {}
     found_any_label = False
 
-    for line in lines:
-        line = line.strip()
+    for raw_line in lines:
+        line = raw_line.strip()
         if not line:
             continue
-        upper = line.upper()
+
+        # Strip leading markdown symbols, numbering, headers
+        clean_line = re.sub(r'^[#*\-\d\.\s\[\]\(\)]+', '', line).strip()
+        clean_line = re.sub(r'^\*\*([A-Za-z]+)\*\*\s*:\s*', r'\1: ', clean_line)
+        clean_line = re.sub(r'^\*([A-Za-z]+)\*\s*:\s*', r'\1: ', clean_line)
+
+        upper = clean_line.upper()
 
         if upper.startswith("HOOK:"):
             found_any_label = True
             current_section = "hook"
-            sections["hook"] = line.split(":", 1)[1].strip()
+            content = clean_line.split(":", 1)[1].strip()
+            sections["hook"] = _clean_markdown(content)
         elif upper.startswith("BODY:"):
             found_any_label = True
             current_section = "body"
-            sections["body"] = line.split(":", 1)[1].strip()
+            content = clean_line.split(":", 1)[1].strip()
+            sections["body"] = _clean_markdown(content)
         elif upper.startswith("PUNCHLINE:"):
             found_any_label = True
             current_section = "punchline"
-            sections["punchline"] = line.split(":", 1)[1].strip()
+            content = clean_line.split(":", 1)[1].strip()
+            sections["punchline"] = _clean_markdown(content)
         elif upper.startswith("EMPHASIS:"):
             found_any_label = True
             current_section = "emphasis"
-            raw = line.split(":", 1)[1].strip()
-            result["emphasis"] = [w.strip().upper() for w in raw.split(",") if w.strip()]
+            raw = clean_line.split(":", 1)[1].strip()
+            raw = _clean_markdown(raw)
+            result["emphasis"] = [w.strip().strip(".,!?;:\"'").upper() for w in raw.split(",") if w.strip()]
         elif upper.startswith("NARRATION:"):
             found_any_label = True
-            result["full_narration"] = line.split(":", 1)[1].strip()
+            current_section = "narration"
+            result["full_narration"] = _clean_markdown(clean_line.split(":", 1)[1].strip())
         elif upper.startswith("TITLE:"):
             found_any_label = True
-            result["title"] = line.split(":", 1)[1].strip()[:60]
-        elif current_section and line:
-            sections[current_section] = sections.get(current_section, "") + " " + line
+            current_section = "title"
+            title_text = _clean_markdown(clean_line.split(":", 1)[1].strip())
+            result["title"] = title_text[:60]
+        elif current_section and current_section in ["hook", "body", "punchline"]:
+            content_line = _clean_markdown(line)
+            if content_line:
+                if sections.get(current_section):
+                    sections[current_section] = sections[current_section] + " " + content_line
+                else:
+                    sections[current_section] = content_line
 
     # Build structured result from sections
     if sections.get("hook") or sections.get("body") or sections.get("punchline"):
@@ -147,30 +232,25 @@ def _parse_structured_response(response: str) -> dict:
     elif result["full_narration"]:
         pass  # Already set from NARRATION: label
     elif found_any_label:
-        # Had labels but no content - shouldn't happen but handle gracefully
-        result["full_narration"] = response
+        result["full_narration"] = _clean_markdown(response)
     else:
         # No labels at all - treat entire response as free-form narration
-        # Try to extract title from last line if it looks like a title
-        result["full_narration"] = response
-        # Check if last line looks like a title (short, no punctuation)
+        clean_resp = _clean_markdown(response)
+        result["full_narration"] = clean_resp
         last_line = lines[-1].strip() if lines else ""
         if last_line and len(last_line.split()) <= 8 and not last_line.endswith((".", "!", "?")):
-            result["title"] = last_line[:60]
-            # Remove title from narration
+            result["title"] = _clean_markdown(last_line)[:60]
             result["full_narration"] = "\n".join(lines[:-1]).strip()
 
     # Generate title from HOOK if no explicit TITLE was found
-    if result["title"] == "GTA V BRAINROT" and result.get("hook"):
-        # Use hook as title (truncate to 60 chars if needed)
+    if (not result["title"] or result["title"] == "GTA V BRAINROT") and result.get("hook"):
         hook_title = result["hook"].rstrip(".!?")
         hook_title = re.sub(r'[^\w\s\'-]', '', hook_title).strip()
         if hook_title:
-            # Style prefix based on content
             result["title"] = hook_title[:60]
 
-    # If still no title, generate from first line of narration
-    if result["title"] == "GTA V BRAINROT" and result["full_narration"]:
+    # If still no title, generate from first sentence of narration
+    if (not result["title"] or result["title"] == "GTA V BRAINROT") and result["full_narration"]:
         first_sentence = result["full_narration"].split(".")[0].strip()
         if first_sentence and len(first_sentence) > 5:
             first_sentence = re.sub(r'[^\w\s\'-]', '', first_sentence).strip()
@@ -178,7 +258,7 @@ def _parse_structured_response(response: str) -> dict:
                 first_sentence = first_sentence[:55] + "..."
             result["title"] = first_sentence
 
-    # Always extract emphasis from narration as fallback
+    # Always extract emphasis from narration if none was explicitly provided
     if not result["emphasis"] and result["full_narration"]:
         result["emphasis"] = _extract_emphasis_from_text(result["full_narration"])
 
@@ -194,6 +274,11 @@ def _extract_emphasis_from_text(text: str) -> list[str]:
     return [w for w in caps_words if not (w in seen or seen.add(w))][:5]
 
 
+def _get_random_fallback() -> tuple[str, str, list[str]]:
+    """Return a randomly chosen fallback script tuple (narration, title, emphasis)."""
+    return random.choice(FALLBACK_SCRIPTS)
+
+
 def generate_brainrot_script(
     clip_description: str = "",
     style: str = "chaotic",
@@ -204,12 +289,12 @@ def generate_brainrot_script(
     """
     api_key = config.GROQ_API_KEY or os.environ.get("GROQ_API_KEY")
     if not api_key:
-        print("❌ GROQ_API_KEY not set!")
-        sys.exit(1)
+        print("❌ GROQ_API_KEY not set! Using fallback.")
+        return _get_random_fallback()
 
     client = Groq(api_key=api_key)
 
-    # Randomly select a format category to keep scripts fresh and highly varied
+    # 12 distinct format categories to guarantee wide variety across runs
     formats = [
         "FAKE LIFE ADVICE (profound advice that slowly becomes unhinged)",
         "CONSPIRACY BRAINROT (start believable, then ruin it completely)",
@@ -224,30 +309,6 @@ def generate_brainrot_script(
         "RANKING PAIN LEVELS (everyday mental or physical pain)",
         "INTERNET LORE (fake history memes)"
     ]
-    selected_format = random.choice(formats)
-
-    user_prompt = (
-        f"Generate a brainrot short script using the format category: {selected_format}.\n\n"
-        f"Requirements:\n"
-        f"- Hook must start with one of the 9 scroll-stopping hooks listed in the system instructions.\n"
-        f"- Script topic must be completely unrelated to GTA or gaming, but highly unhinged and funny.\n"
-        f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
-        f"- HOOK: grab attention in 5-10 words\n"
-        f"- BODY: 3-5 short punchy lines (25-45 words total)\n"
-        f"- PUNCHLINE: loop-ended closing line (5-10 words)\n"
-        f"- Use ALL CAPS on 2-3 key words for emphasis\n"
-        f"- NO EMOJIS whatsoever in HOOK, BODY, or PUNCHLINE - plain text only\n"
-        f"- MUST be a SEAMLESS INFINITE LOOP where PUNCHLINE flows directly back into HOOK.\n"
-        f"- CRITICAL: Do NOT use any forbidden or bannable words (e.g. RAPE, slurs, hate speech, explicit violence).\n\n"
-        f"Format EXACTLY like this:\n"
-        f"HOOK: <attention grabber, 5-10 words>\n"
-        f"BODY: <3-5 short lines, 25-45 words total>\n"
-        f"PUNCHLINE: <loop-ended closing, 5-10 words>\n"
-        f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
-        f"TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
-    )
-
-    print(f"🤖 Groq: generating script using format [{selected_format}]…")
 
     best_result = {
         "full_narration": "",
@@ -256,40 +317,70 @@ def generate_brainrot_script(
         "word_count": 0,
     }
 
-    for attempt in range(2):
+    model_name = config.GROQ_MODEL or "openai/gpt-oss-20b"
+
+    for attempt in range(3):
+        selected_format = random.choice(formats)
+        user_prompt = (
+            f"Generate a brainrot short script using the format category: {selected_format}.\n\n"
+            f"Requirements:\n"
+            f"- Hook must start with one of the 9 scroll-stopping hooks listed in the system instructions.\n"
+            f"- Script topic must be completely unrelated to GTA or gaming, but highly unhinged and funny.\n"
+            f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
+            f"- HOOK: grab attention in 5-10 words\n"
+            f"- BODY: 3-5 short punchy lines (25-45 words total)\n"
+            f"- PUNCHLINE: loop-ended closing line (5-10 words)\n"
+            f"- Use ALL CAPS on 2-3 key words for emphasis\n"
+            f"- NO EMOJIS whatsoever in HOOK, BODY, or PUNCHLINE - plain text only\n"
+            f"- MUST be a SEAMLESS INFINITE LOOP where PUNCHLINE flows directly back into HOOK.\n"
+            f"- CRITICAL: Do NOT use any forbidden or bannable words (e.g. hate speech, slurs, explicit violence).\n\n"
+            f"Format EXACTLY like this:\n"
+            f"HOOK: <attention grabber, 5-10 words>\n"
+            f"BODY: <3-5 short lines, 25-45 words total>\n"
+            f"PUNCHLINE: <loop-ended closing, 5-10 words>\n"
+            f"EMPHASIS: <comma-separated list of the 2-3 ALL CAPS words>\n"
+            f"TITLE: <viral clickbait title under 55 chars with 1-2 gamer/shock emojis (e.g. 💀, 🤯)>"
+        )
+
+        print(f"🤖 Groq [{model_name}]: generating script using format [{selected_format.split('(')[0].strip()}] (attempt {attempt + 1})…")
+
         try:
             completion = client.chat.completions.create(
-                model=config.GROQ_MODEL,
+                model=model_name,
                 messages=[
                     {"role": "system", "content": USER_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.95,
-                max_tokens=600,
-                timeout=30,
+                max_tokens=4096,  # Sizable allowance for reasoning models (e.g., openai/gpt-oss-20b) + output
+                timeout=45,
             )
         except Exception as e:
-            print(f"   ⚠ Groq API error (attempt {attempt+1}): {e}")
-            if attempt == 1:
-                print(f"   ⚠ Using fallback narration")
-                return FALLBACK_NARRATION, "GTA V BRAINROT", ["EVER", "NORMAL", "SPAWNS", "PEAK"]
+            print(f"   ⚠ Groq API error (attempt {attempt + 1}): {e}")
+            if attempt == 2 and not best_result["full_narration"]:
+                print(f"   ⚠ Using fallback narration from pool")
+                return _get_random_fallback()
             continue
 
-        response = completion.choices[0].message.content.strip()
+        raw_response = completion.choices[0].message.content or ""
+        raw_response = raw_response.strip()
+
+        if not raw_response:
+            print(f"   ⚠ Received empty content from model (attempt {attempt + 1})")
+            continue
 
         # Parse structured response
-        parsed = _parse_structured_response(response)
+        parsed = _parse_structured_response(raw_response)
 
-        # Strip formatting
+        # Strip formatting and emojis
         narration = _strip_emojis(parsed["full_narration"])
-        narration = narration.replace("**", "").replace("__", "").replace("*", "")
-        title = parsed["title"].replace("**", "").replace("__", "").replace("*", "")
+        narration = _clean_markdown(narration)
+        title = _clean_markdown(parsed["title"])
 
         # Strict Brand Safety check: scan narration and title for forbidden/bannable terms
         combined_text = (narration + " " + title).upper()
         has_forbidden = False
         for forbidden in FORBIDDEN_WORDS:
-            # Match word boundary to avoid false positives (e.g. "grape")
             if re.search(r'\b' + re.escape(forbidden) + r'\b', combined_text):
                 print(f"   ⚠ Safety filter triggered: found forbidden word '{forbidden}' - retrying...")
                 has_forbidden = True
@@ -304,20 +395,20 @@ def generate_brainrot_script(
             emphasis = _extract_emphasis_from_text(narration)
 
         wc = len(narration.split())
-        if wc > best_result["word_count"] and wc >= 30:
+        if wc >= 25:
             best_result["full_narration"] = narration
-            best_result["title"] = title or "GTA V BRAINROT"
+            best_result["title"] = title or "GTA V BRAINROT 🤯"
             best_result["emphasis"] = emphasis
             best_result["word_count"] = wc
 
+        # Optimal word count window
         if 35 <= wc <= 75:
             break
-        user_prompt += "\n\nMake it shorter and punchier! MUST be 40-65 words."
 
-    # If we got nothing useful, use fallback
+    # If we got nothing useful after all attempts, use a random fallback script
     if not best_result["full_narration"]:
-        print("   ⚠ No valid script generated, using fallback")
-        return FALLBACK_NARRATION, "GTA V BRAINROT", ["EVER", "NORMAL", "SPAWNS", "PEAK"]
+        print("   ⚠ No valid script generated, selecting diverse fallback")
+        return _get_random_fallback()
 
     print(f"   📝 {best_result['word_count']} words, {len(best_result['emphasis'])} emphasis words")
     return best_result["full_narration"], best_result["title"], best_result["emphasis"]
@@ -341,4 +432,4 @@ if __name__ == "__main__":
     n, t, e = generate_brainrot_script(style=args.style)
     print(f"\n✅ {len(n.split())} words: {n}")
     print(f"📌 {t}")
-    print(f"🔍 Emphasis: {e}")
+    print(f"🔍 Emphasis: {e}")

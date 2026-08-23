@@ -84,7 +84,8 @@ data/clips/ (15-40s segments)
 | `CLIP_MIN_DURATION` | `15` | Minimum clip length in seconds |
 | `CLIP_MAX_DURATION` | `40` | Maximum clip length in seconds |
 | `GROQ_API_KEY` | from `.env` | Groq LLM API key |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Groq model name |
+| `GROQ_MODEL` | `openai/gpt-oss-20b` | Groq model name |
+
 | `TTS_VOICE` | `en-US-EricNeural` | Default Edge TTS voice |
 | `YT_CLIENT_ID` | from `.env` | YouTube OAuth client ID |
 | `YT_CLIENT_SECRET` | from `.env` | YouTube OAuth client secret |
