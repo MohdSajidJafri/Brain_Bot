@@ -33,8 +33,10 @@ YTDL_FORMAT = _env("YTDL_FORMAT", "bestvideo[height<=1080][ext=mp4]+bestaudio[ex
 
 # ── Clip processing ──────────────────────────────────────────
 SCENE_THRESHOLD = float(_env("SCENE_THRESHOLD", "0.3"))  # 0-1 sensitivity
-CLIP_MIN_DURATION = float(_env("CLIP_LENGTH_MIN", "30"))
-CLIP_MAX_DURATION = float(_env("CLIP_LENGTH_MAX", "55"))
+CLIP_MIN_DURATION = float(_env("CLIP_LENGTH_MIN", "15"))
+CLIP_MAX_DURATION = float(_env("CLIP_LENGTH_MAX", "40"))
+MAX_CLIPS = int(_env("MAX_CLIPS", "100"))
+
 
 # ── Groq LLM ─────────────────────────────────────────────────
 GROQ_API_KEY = _env("GROQ_API_KEY")

@@ -111,12 +111,13 @@ def _cleanup_raw_videos(keep_processed: bool = True) -> None:
             v.unlink(missing_ok=True)
 
 
-def _keep_best_clips(max_clips: int = 10) -> None:
+def _keep_best_clips(max_clips: int | None = None) -> None:
     """Only keep the best (largest file-size) clips, delete the rest."""
+    limit = max_clips if max_clips is not None else getattr(config, "MAX_CLIPS", 100)
     clips = sorted(config.CLIPS_DIR.glob("*.mp4"), key=lambda p: p.stat().st_size, reverse=True)
-    if len(clips) > max_clips:
-        to_delete = clips[max_clips:]
-        print(f"   🧹 Keeping top {max_clips} clips, deleting {len(to_delete)}…")
+    if len(clips) > limit:
+        to_delete = clips[limit:]
+        print(f"   🧹 Keeping top {limit} clips, deleting {len(to_delete)}…")
         for c in to_delete:
             c.unlink(missing_ok=True)
 
@@ -156,12 +157,13 @@ def process_all_raw() -> list[Path]:
 
     # Cleanup: remove raw files, keep best clips
     _cleanup_raw_videos()
-    _keep_best_clips(max_clips=10)
+    _keep_best_clips(max_clips=getattr(config, "MAX_CLIPS", 100))
 
     # Re-count remaining clips
     remaining = sorted(config.CLIPS_DIR.glob("*.mp4"))
     print(f"\n✅ {len(remaining)} clips available (raw files cleaned up)")
     return remaining
+
 
 
 def get_random_clip() -> Path | None:
