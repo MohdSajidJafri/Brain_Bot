@@ -13,55 +13,56 @@ The pipeline can upload automatically to YouTube (via OAuth2 refresh token) and 
 ```
 GTA_VI_Automation/
 ├── config.py                # Central configuration (paths, API keys, settings)
-├── download_clips.py        # Step 1: Download GTA V gameplay via yt-dlp
-├── process_clips.py         # Step 2: Extract short clips via FFmpeg scene detection
-├── generate_script.py       # Step 3: Generate brainrot script via Groq LLM
-├── generate_voiceover.py    # Step 4: Synthesize voiceover via Edge TTS
-├── render_short.py          # Step 5: Render 9:16 video with kinetic captions via FFmpeg
-├── run_pipeline.py          # Orchestrator: runs all steps in sequence
+├── analytics_optimizer.py   # Step 0: Self-optimizing YouTube Analytics API (v2) intelligence engine
+├── download_clips.py        # Step 1: Download GTA V gameplay via yt-dlp (with Android client bypass)
+├── process_clips.py         # Step 2: Extract short clips via FFmpeg scene detection + round-robin rotation
+├── generate_script.py       # Step 3: Generate brainrot script via Groq LLM (openai/gpt-oss-20b)
+├── generate_voiceover.py    # Step 4: Synthesize voiceover via Edge TTS (clean speech, zero emojis)
+├── render_short.py          # Step 5: Render 9:16 video with kinetic ASS captions via FFmpeg
+├── run_pipeline.py          # Orchestrator: runs all steps in sequence with live analytics optimization
 ├── upload_youtube.py        # Upload to YouTube Shorts via OAuth2
 ├── upload_instagram.py      # Manual upload guide (API login broken)
-├── get_refresh_token.py     # Helper: generate YouTube OAuth refresh token
+├── diagnose_channel.py      # Algorithm health & video performance diagnostic auditor
+├── get_refresh_token.py     # Helper: generate YouTube OAuth master refresh token (Upload + Analytics)
 ├── .env                     # Local config (API keys, credentials) — NEVER COMMIT
 ├── .env.example             # Template for .env
 ├── .gitignore               # Ignore .env, __pycache__, data/output/, data/raw/
 ├── requirements.txt         # Python dependencies
-├── ARCHITECTURE.md          # This file
+├── ARCHITECTURE.md          # Architecture & implementation guide
 ├── README.md                # Quick-start guide
 └── data/
-    ├── clips/               # Committed gameplay clips (tracked in git)
+    ├── clips/               # Committed gameplay clips (up to 100 scenes tracked in git)
     ├── raw/                 # Downloaded raw videos (gitignored)
-    ├── output/              # Generated voiceover.mp3, final_short.mp4 (gitignored)
-    └── cache/               # Session files, download archives (gitignored)
+    ├── output/              # Generated voiceover.mp3, final_short.mp4, diagnostic reports (gitignored)
+    └── cache/               # analytics_intelligence.json, used_clips.json, token cache (gitignored)
 ```
 
 ---
 
-## Data Flow
+## Data Flow & Self-Optimizing Feedback Loop
 
 ```
-YouTube (yt-dlp)
+YouTube Analytics API (v2)
     │
     ▼
-data/raw/ (downloaded videos)
+analytics_optimizer.py ──► data/cache/analytics_intelligence.json (APV %, AVD, optimal word counts & style weights)
     │
-    ▼ [FFmpeg scene detection]
-data/clips/ (15-40s segments)
+    ▼
+data/clips/ (26-100 scenes) ──► process_clips.py (least-recently-used round-robin rotation)
     │
-    ▼ [random selection]
-1 clip chosen
+    ▼ [1 clip selected]
+    ├──► generate_script.py (Groq openai/gpt-oss-20b) ──► adaptive narration (35-50 words) + title + emphasis
     │
-    ├──► generate_script.py  ──► narration (40-65 words) + title + emphasis words
+    ├──► generate_voiceover.py (Edge TTS) ──► voiceover.mp3 (zero emojis) + sentence timestamps
     │
-    ├──► generate_voiceover.py ──► voiceover.mp3 + sentence timestamps
-    │
-    └──► render_short.py ──► final_short.mp4 (1080x1920, captions, music)
+    └──► render_short.py (FFmpeg) ──► final_short.mp4 (1080x1920, kinetic ASS captions, audio normalized)
          │
-         ├──► upload_youtube.py (automatic via OAuth2)
+         ├──► upload_youtube.py (automatic via OAuth2 with dynamic rotating hashtags)
          └──► upload_instagram.py (manual upload guide)
 ```
 
 ---
+
 
 ## File-by-File Breakdown
 
@@ -354,28 +355,74 @@ def upload_short(
 
 ---
 
-### 10. `get_refresh_token.py` — YouTube Auth Helper
+### 10. `analytics_optimizer.py` — Real-Time YouTube Analytics Engine
 
-**Purpose:** One-time script to generate a YouTube OAuth refresh token.
+**Purpose:** Connects to the private YouTube Analytics API (v2) and Data API (v3) to pull real-time retention metrics and compute dynamic optimization parameters.
+
+**Key functions:**
+```python
+def fetch_private_analytics_report(days_back: int = 30) -> dict:
+def compute_optimization_intelligence(analytics_data: dict) -> dict:
+def load_intelligence() -> dict:
+```
+- Pulls Average Percentage Viewed (APV), Average View Duration (AVD), and views for top videos
+- If APV < 60%, automatically shortens target script length (35-48 words) and target video duration (14-20s)
+- Dynamically assigns sampling weights for styles (`chaotic`, `meme`, `story`, `npc`) based on retention performance
+- Saves learned parameters to `data/cache/analytics_intelligence.json`
+
+**CLI usage:**
+```bash
+python analytics_optimizer.py
+```
+
+---
+
+### 11. `diagnose_channel.py` — Algorithm & Growth Diagnostic Auditor
+
+**Purpose:** Scans the channel's entire video catalog to diagnose algorithm health, title duplication, and view distribution.
+
+**Key function:**
+```python
+def analyze_channel_health(channel_info: dict, videos: list[dict]) -> str:
+```
+- Fetches all public shorts/videos via yt-dlp metadata extraction (requires zero elevated OAuth scopes)
+- Analyzes title duplication frequency and identifies spam patterns
+- Audits view distribution (0 views vs seed impressions vs viral momentum)
+- Generates a markdown diagnostic report saved to `data/output/channel_diagnosis_report.md`
+
+**CLI usage:**
+```bash
+python diagnose_channel.py --channel "@gyattwire"
+```
+
+---
+
+### 12. `get_refresh_token.py` — YouTube Auth Master Helper
+
+**Purpose:** Generates a YouTube OAuth master refresh token with all 3 required scopes:
+- `https://www.googleapis.com/auth/youtube.upload`
+- `https://www.googleapis.com/auth/youtube.readonly`
+- `https://www.googleapis.com/auth/yt-analytics.readonly`
 
 **Usage:**
 ```bash
 python get_refresh_token.py
 ```
-Opens a browser for OAuth consent, then prints the refresh token to add to `.env`.
 
 ---
 
 ## GitHub Actions CI/CD
 
-The pipeline has a scheduled workflow (`.github/workflows/daily_brainrot.yml`) that runs twice daily.
+The pipeline includes two workflows:
 
-**Key points:**
-- Uses `--skip-download` because yt-dlp gets bot-blocked on GitHub runner IPs
-- Relies on pre-committed clips in `data/clips/` (9 clips from 3 sources)
-- YouTube upload works via OAuth refresh token from repo secrets
-- Instagram upload is skipped on CI (prints manual guide)
-- 45-minute timeout on the workflow itself
+1. **Daily Scheduled Pipeline (`.github/workflows/daily_brainrot.yml`):**
+   - Runs twice daily at peak viewing hours: **1:30 PM & 7:30 PM IST (08:00 & 14:00 UTC)**
+   - Syncs live analytics, picks optimal styles based on analytics intelligence, renders the video with kinetic subtitles, and uploads to YouTube Shorts.
+   - Uses pre-committed clips in `data/clips/` (26+ scenes with least-recently-used round-robin rotation).
+
+2. **One-Click Diagnostic Audit (`.github/workflows/audit_channel.yml`):**
+   - Can be triggered manually on GitHub Actions to audit channel metrics and generate a performance report artifact.
+
 
 **Required GitHub Secrets:**
 - `GROQ_API_KEY`
