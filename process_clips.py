@@ -9,7 +9,20 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Ensure UTF-8 console output on Windows
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import config
+
 
 # All subprocess calls get a timeout to prevent indefinite hangs
 SUBPROCESS_TIMEOUT = 300  # 5 minutes per ffmpeg operation
@@ -167,12 +180,48 @@ def process_all_raw() -> list[Path]:
 
 
 def get_random_clip() -> Path | None:
-    """Pick a random clip from the clips directory."""
+    """
+    Pick a clip from the clips directory using round-robin rotation.
+    Avoids reusing the same clip repeatedly by tracking used history in data/cache/used_clips.json.
+    """
+    import json
+    import random
+
     clips = sorted(config.CLIPS_DIR.glob("*.mp4"))
     if not clips:
         return None
-    import random
-    return random.choice(clips)
+
+    history_file = config.CACHE_DIR / "used_clips.json"
+    used_names: list[str] = []
+    if history_file.exists():
+        try:
+            used_names = json.loads(history_file.read_text(encoding="utf-8"))
+        except Exception:
+            used_names = []
+
+    # Find unused clips
+    unused = [c for c in clips if c.name not in used_names]
+
+    if not unused:
+        # If all clips have been used, reset history and pick from all
+        unused = clips
+        used_names = []
+
+    selected = random.choice(unused)
+
+    # Update history (keep last N - 1 clips)
+    used_names.append(selected.name)
+    max_history = max(1, len(clips) - 2)
+    if len(used_names) > max_history:
+        used_names = used_names[-max_history:]
+
+    try:
+        history_file.write_text(json.dumps(used_names, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+    return selected
+
 
 
 if __name__ == "__main__":

@@ -23,9 +23,20 @@ from render_short import render
 
 STYLES = ["chaotic", "meme", "story", "npc"]
 
-# Viral hashtag pools (combining best-performing generic gaming tags, targeted GTA 6 buzz tags, and requested viral categories)
-YT_HASHTAGS = "#shorts #gta6 #brainrot #funny"
-IG_HASHTAGS = "#reels #gta6 #brainrot #funny"
+
+def _generate_hashtags(platform: str = "youtube") -> str:
+    """Generate dynamic, rotating hashtags for optimal algorithm reach without spamming identical tags."""
+    core = ["#shorts", "#gta6", "#gaming", "#brainrot"] if platform == "youtube" else ["#reels", "#gta6", "#gaming", "#brainrot"]
+    niche = [
+        "#funny", "#relatable", "#memes", "#comedy", "#unhinged",
+        "#npc", "#mindblown", "#storytime", "#gtav", "#gameplay",
+        "#fyp", "#viralshorts", "#satisfying", "#dailyhumor"
+    ]
+    selected_niche = random.sample(niche, k=random.randint(3, 5))
+    tags = core + selected_niche
+    random.shuffle(tags)
+    return " ".join(tags)
+
 
 # Global timeout for the entire pipeline (40 min — CI has 45 min limit)
 import threading
@@ -40,32 +51,34 @@ def _pick_style(force: str | None) -> str:
 
 
 def _build_description(style: str, title: str, platform: str = "youtube") -> str:
-    """Build catchy description with relevant hashtags."""
+    """Build catchy description with call to action and dynamic hashtags."""
     hooks = {
         "chaotic": [
-            "Absolute CHAOS in GTA 6 🤯 Watch till the end!",
-            "This is why GTA VI is the BEST game ever made 💀",
-            "GTA 6 physics are BROKEN and I love it 😂",
+            "Wait for the ending... 🤯 Drop a like if this made you laugh!",
+            "GTA 6 physics are completely broken and I love it 😂",
+            "Subscribe to @GyattWire for daily unhinged brainrot! 🔥",
+            "This might be the most unhinged thing you see all day 💀",
         ],
         "meme": [
-            "GTA 6 memes never get old 😂 Watch this!",
-            "Only in GTA VI would this happen 💀",
-            "This is PEAK GTA 6 content right here 🏆",
+            "GTA memes never get old 😂 Share this with a friend!",
+            "Only in GTA would this actually happen 💀",
+            "Subscribe for more daily chaotic gaming moments 🏆",
         ],
         "story": [
-            "Every NPC in GTA 6 has a story 📖 This one is CRAZY",
-            "The lore behind GTA VI NPCs is DEEP 😱",
-            "This NPC has SEEN things in GTA 6 👀",
+            "Every NPC has a story 📖 This one took an unexpected turn!",
+            "The brainrot lore is getting out of hand 😱",
+            "Drop your theories in the comments below! 👀",
         ],
         "npc": [
-            "POV: You're an NPC in GTA VI watching the player 💀",
-            "The NPC experience in GTA 6 is UNDERRATED 😂",
-            "NPCs in GTA VI have enough trauma for a lifetime 💀",
+            "POV: You're an NPC in GTA watching the player 💀",
+            "The NPC experience is severely underrated 😂",
+            "Subscribe and join the brainrot revolution! 🚀",
         ],
     }
     hook = random.choice(hooks.get(style, hooks["chaotic"]))
-    hashtags = YT_HASHTAGS if platform == "youtube" else IG_HASHTAGS
-    return f"{title}\n\n{hook}\n.\n.\n{hashtags}"
+    hashtags = _generate_hashtags(platform)
+    return f"{title}\n\n{hook}\n\n---\n{hashtags}"
+
 
 
 def main() -> None:
@@ -191,12 +204,15 @@ def main() -> None:
             ig_desc = _build_description(style, title, "instagram")
 
             from upload_youtube import upload_short
-            # Truncate title if needed to stay under safety threshold, then append tags
-            upload_title = f"{title} #shorts #gta6"
+            # Truncate title if needed to stay under safety threshold, then append rotating tags
+            tag_choices = ["#shorts #gta6", "#shorts #gaming", "#shorts #brainrot", "#shorts #viral", "#shorts #memes"]
+            chosen_tag = random.choice(tag_choices)
+            upload_title = f"{title} {chosen_tag}"
             if len(upload_title) > 95:
-                upload_title = f"{title[:75]}... #shorts #gta6"
+                upload_title = f"{title[:70]}... {chosen_tag}"
             upload_short(video_path, title=upload_title, description=yt_desc,
                          privacy=args.privacy)
+
 
             from upload_instagram import upload_reel
             upload_reel(video_path, caption=ig_desc)

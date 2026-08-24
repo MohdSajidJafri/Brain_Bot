@@ -8,7 +8,20 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Ensure UTF-8 console output on Windows
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import config
+
 
 
 
@@ -26,7 +39,8 @@ def download_fresh_clips(query: str | None = None, max_downloads: int | None = N
     output_tpl = str(config.RAW_DIR / "%(id)s.%(ext)s")
     cmd = [
         sys.executable, "-m", "yt_dlp",
-        "--format", config.YTDL_FORMAT,
+        "--extractor-args", "youtube:player_client=android,web",
+        "--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
         "--output", output_tpl,
         "--max-downloads", str(count),
         "--download-archive", str(config.CACHE_DIR / "archive.txt"),
@@ -37,6 +51,7 @@ def download_fresh_clips(query: str | None = None, max_downloads: int | None = N
         "--retries", "3",
         f"ytsearch{count}:{search_query}",
     ]
+
 
     print(f"🔍 Searching: {search_query}")
     print(f"   Max downloads: {count}")
