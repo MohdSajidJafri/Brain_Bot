@@ -313,6 +313,15 @@ def generate_brainrot_script(
         "word_count": 0,
     }
 
+    # Load real-time analytics intelligence
+    try:
+        from analytics_optimizer import load_intelligence
+        intel = load_intelligence()
+        target_min = intel.get("target_word_count_min", 40)
+        target_max = intel.get("target_word_count_max", 55)
+    except Exception:
+        target_min, target_max = 40, 55
+
     # Limit retries to 2 to stay well within Groq TPM and RPM rate limits
     for attempt in range(2):
         selected_format = random.choice(FORMAT_CATEGORIES)
@@ -322,20 +331,21 @@ def generate_brainrot_script(
             f"Write a {style} brainrot short script using category: {selected_format}.\n"
             f"Start the HOOK with: '{selected_hook}'\n"
             f"Requirements:\n"
-            f"- Total 40-65 words across HOOK + BODY + PUNCHLINE\n"
+            f"- Total {target_min}-{target_max} words across HOOK + BODY + PUNCHLINE\n"
             f"- HOOK: attention grabber in 5-10 words starting with '{selected_hook}'\n"
-            f"- BODY: 3-5 punchy lines (25-45 words total)\n"
+            f"- BODY: 3-5 punchy lines ({target_min-15}-{target_max-15} words total)\n"
             f"- PUNCHLINE: definitive, complete concluding punchline (5-10 words)\n"
             f"- ALL CAPS on 2-3 key words for emphasis\n"
             f"- ZERO EMOJIS in HOOK, BODY, PUNCHLINE, or EMPHASIS — plain text words only (emojis are only in TITLE)\n"
             f"- MUST have a DEFINITIVE, COMPLETE ENDING (NO looping mechanism or trailing sentences)\n\n"
             f"Format EXACTLY like this:\n"
             f"HOOK: <5-10 words>\n"
-            f"BODY: <25-45 words>\n"
+            f"BODY: <{target_min-15}-{target_max-15} words>\n"
             f"PUNCHLINE: <5-10 words>\n"
             f"EMPHASIS: <word1, word2>\n"
             f"TITLE: <viral title under 55 chars with 1-2 shock emojis>"
         )
+
 
         print(f"🤖 Groq [{model_name}]: generating script using format [{selected_format.split('(')[0].strip()}] (attempt {attempt + 1})…")
 

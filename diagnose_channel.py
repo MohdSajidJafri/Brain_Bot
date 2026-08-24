@@ -177,6 +177,18 @@ def main():
 
     report_md = analyze_channel_health(channel_info, videos)
 
+    # Run deep private analytics sync
+    try:
+        from analytics_optimizer import sync_and_optimize
+        intel = sync_and_optimize()
+        report_md += "\n\n---\n### 🧠 Active Self-Optimization Engine State\n"
+        report_md += f"- **Target Word Count:** {intel.get('target_word_count_min')} - {intel.get('target_word_count_max')} words\n"
+        report_md += f"- **Optimal Duration Range:** {intel.get('optimal_video_duration_range')} seconds\n"
+        report_md += f"- **Learned Style Probabilities:** {intel.get('style_weights')}\n"
+    except Exception as e:
+        print(f"⚠ Analytics sync notice: {e}")
+
+
     # Save report artifact
     out_file = config.OUTPUT_DIR / "channel_diagnosis_report.md"
     out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -190,3 +202,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

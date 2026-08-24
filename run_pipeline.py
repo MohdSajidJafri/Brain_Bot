@@ -44,9 +44,20 @@ PIPELINE_TIMEOUT = 40 * 60  # 40 minutes in seconds
 
 
 def _pick_style(force: str | None) -> str:
-    """Pick a random style, or use the forced one."""
+    """Pick a style probabilistically based on real-time analytics performance weights."""
     if force and force != "random":
         return force
+    try:
+        from analytics_optimizer import load_intelligence
+        intel = load_intelligence()
+        weights_dict = intel.get("style_weights", {})
+        if weights_dict:
+            styles = list(weights_dict.keys())
+            weights = list(weights_dict.values())
+            chosen = random.choices(styles, weights=weights, k=1)[0]
+            return chosen
+    except Exception:
+        pass
     return random.choice(STYLES)
 
 
@@ -80,7 +91,6 @@ def _build_description(style: str, title: str, platform: str = "youtube") -> str
     return f"{title}\n\n{hook}\n\n---\n{hashtags}"
 
 
-
 def main() -> None:
     # Set an overall pipeline alarm timeout (Unix) or thread timer (cross-platform)
     timer = threading.Timer(PIPELINE_TIMEOUT, lambda: (
@@ -91,6 +101,13 @@ def main() -> None:
     timer.start()
 
     try:
+        # Step 0: Sync live YouTube analytics and self-optimize parameters
+        try:
+            from analytics_optimizer import sync_and_optimize
+            sync_and_optimize()
+        except Exception as e:
+            print(f"⚠ Analytics sync notice: {e}")
+
         ap = argparse.ArgumentParser(
             description="GTA V Brainrot Shorts — Full Automation Pipeline"
         )
@@ -108,6 +125,7 @@ def main() -> None:
         print("=" * 60)
         print(f"🎮 GTA V BRAINROT SHORTS PIPELINE  |  Style: {style.upper()}")
         print("=" * 60)
+
 
         # ── Step 1: Download ──
         if not args.skip_download:
