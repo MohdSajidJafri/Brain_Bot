@@ -38,22 +38,18 @@ def _get_authenticated_service():
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
 
-    SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+    SCOPES = [
+        "https://www.googleapis.com/auth/youtube.upload",
+        "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/yt-analytics.readonly",
+    ]
+
 
     creds = None
-    token_file = config.CACHE_DIR / "yt_token.json"
 
-    # Try loading cached token file first
-    if token_file.exists():
-        try:
-            creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
-        except Exception as e:
-            print(f"   ⚠ Could not load cached token: {e}")
-            creds = None
-
-    # If we have a refresh token in env, use it directly
-    if (not creds or not creds.valid) and config.YT_REFRESH_TOKEN:
-        print("   Using refresh token from environment...")
+    # Always prioritize refresh token from .env
+    if config.YT_REFRESH_TOKEN and "your_" not in config.YT_REFRESH_TOKEN:
+        print("   Using refresh token from environment (.env)...")
         creds = Credentials(
             token=None,
             refresh_token=config.YT_REFRESH_TOKEN,
@@ -62,12 +58,22 @@ def _get_authenticated_service():
             client_secret=config.YT_CLIENT_SECRET,
             scopes=SCOPES,
         )
+    else:
+        # Fallback to token file cache if available
+        token_file = config.CACHE_DIR / "yt_token.json"
+        if token_file.exists():
+            try:
+                creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
+            except Exception as e:
+                print(f"   ⚠ Could not load cached token: {e}")
+                creds = None
 
-    # Refresh the token if expired
-    if creds and not creds.valid:
+    # Refresh the token if needed
+    if creds:
         try:
             creds.refresh(Request())
             print("   ✅ Token refreshed")
+
         except Exception as e:
             print(f"   ⚠ Token refresh failed: {e}")
             creds = None

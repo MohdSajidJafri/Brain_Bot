@@ -68,15 +68,33 @@ def main() -> None:
     print()
 
     flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-    creds = flow.run_local_server(port=0, open_browser=True)
+    creds = flow.run_local_server(port=0, open_browser=True, prompt="consent select_account")
+
+    # Verify which channel was authorized
+    channel_name = "Unknown"
+    channel_id = "Unknown"
+    try:
+        from googleapiclient.discovery import build
+        yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
+        ch = yt.channels().list(mine=True, part="snippet").execute()
+        if ch.get("items"):
+            channel_name = ch["items"][0]["snippet"]["title"]
+            channel_id = ch["items"][0]["id"]
+    except Exception as e:
+        channel_name = f"Error querying: {e}"
 
     print()
     print("=" * 60)
-    print("✅ SUCCESS! Here is your new refresh token:")
+    print("✅ SUCCESS! Authorization Complete")
+    print(f"   📺 Channel Connected: {channel_name}")
+    print(f"   🆔 Channel ID:        {channel_id}")
+    print("=" * 60)
     print()
+    print("🔑 Your new Master Refresh Token:")
     print(f"   {creds.refresh_token}")
     print()
     print("=" * 60)
+
     print()
     print("📌 Add this to your .env file:")
     print(f'   YT_REFRESH_TOKEN="{creds.refresh_token}"')
